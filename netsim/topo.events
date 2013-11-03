@@ -1,0 +1,24 @@
+# This file contains a list of link change events to execute in the simulated
+# network. Columns are as follows:
+#
+# <time> <ip1> <ip2> <bandwidth> <latency>
+#
+# time: time (in seconds) after the previous event that this event should run
+# 		Floats are ok. The character '*' indicates the event should wait to
+#		run until the user presses enter.
+#
+# ip1, ip2: The IP addresses of the endpoints whose "link" you with to modify.
+#			Order is not important.
+#
+# bandwidth: The BW to set. Should include unit (e.g., 1mbit or 500kbit)
+#
+# latency: The artificial latency to impose on the link. Should include unit
+#		   (e.g., 200ms or 1s)
+#
+
+#0 3.0.0.1 4.0.0.1 100mbit 0ms
+#0 5.0.0.1 4.0.0.1 100mbit 0ms
+#* 3.0.0.1 4.0.0.1 100mbit 500ms
+#* 5.0.0.1 4.0.0.1 100mbit 200ms
+* 3.0.0.1 4.0.0.1 100mbit 0ms
+* 5.0.0.1 4.0.0.1 100mbit 0ms
