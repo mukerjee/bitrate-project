@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+import sys
+sys.path.append('../common')
+
 import argparse
 import hashlib
 from util import check_output, check_both

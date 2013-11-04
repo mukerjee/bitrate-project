@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+import sys
+sys.path.append('../common')
+
 import time
 import logging
 import argparse
