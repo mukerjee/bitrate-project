@@ -23,41 +23,31 @@ Checkpoint 1 due: ???\\
 Final version due: ???}}
 
 
-\begin{enumerate}
+\section{Introduction}
 
-	\item Video bit rate adaptation
-	\begin{itemize}
-		\item Server (provided by us) serves manifest and multiple copies of the video file encoded at different bit rates
-		\item Students implement a proxy that sits between our server and a stock video player.
-		\item The proxy measures the BW it's getting from the server and requests the appropriate encoding.
-		\item We can use click to artificially vary the BW/latency between the proxy and the server.
-	\end{itemize}
 
-	\item DNS Load balancing??
-	\begin{itemize}
-		\item Students launch multiple instances of the video servers
-		\item Students implement a simple DNS server that uses round robin to return a video server's IP address
-		\item This sounds really easy. Worth making them do it?
-	\end{itemize}
+\section{System Overview}
 
-	\item Routing among servers???
-	\begin{itemize}
-		\item If we need more meat, we could bring back a piece of the old project 2, where servers don't necessarily have all video chunks.
-		\item A set of video servers run OSPF among themselves to figure out how many hops they are away from each other
-		\item Each video server gets a subset of the media files
-		\item The students' proxy requests a video file from a ``master'' server; if that server doesn't have the file, it forwards the request to the closest server that does.
-	\end{itemize}
+- picture
+- client
+- proxy
+- server
+- DNS server
 
-\end{enumerate}
 
-\begin{center}
+\section{Video Bitrate Adaptation}
 
-\includegraphics[width=0.5\textwidth]{basic.jpg}
-\includegraphics[width=0.5\textwidth]{dns.jpg}
-\includegraphics[width=0.5\textwidth]{ospf.jpg}
 
-\end{center}
+\section{DNS Load Balancing}
 
+
+\section{Starter Code}
+
+
+\section{Hand In}
+
+
+\section{Grading}
 
 
 \end{document}
