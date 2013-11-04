@@ -16,3 +16,9 @@
 *.exe
 *.out
 *.app
+
+# Python
+*.pyc
+
+# OSX
+.DS_Store
