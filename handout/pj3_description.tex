@@ -138,12 +138,14 @@ the best bitrate for the connection. See \S\ref{sec:proxy-details} for details.
 \label{sec:proxy-details}
 
 \subsubsection{Throughput Calculation}
-Your proxy will calculate throughput as follows. First, pick a measurement
-interval $t$, e.g., 1 second. Next keep, keep a running total, $B$, of the
-number of bytes received during the current interval. Then, at the end of each
-interval, calculate that interval's throughput $T$:
+Your proxy could estimate your connection's throughput once per chunk as
+follows. Note the start time, $t_s$, of each chunk request (i.e., save a
+timestamp when your proxy receives a request from the player). Save another
+timestamp, $t_f$, when you have finished receiving the chunk from the server.
+Now, given the size of the chunk, $B$, you can computer the throughput, $T$,
+your proxy saw for this chunk:
 \[
-	T = \frac{B}{t}
+	T = \frac{B}{t_f - t_s}
 \]
 
 
@@ -151,8 +153,12 @@ To smooth your current throughput estimation, your proxy should use an
 exponentially-weighted moving average (EWMA). Every time you make a new
 measurement ($T_{new}$), update your current throughput estimation as follows:
 \[
-	T_{current} = \alpha T_{current}  +  (1 - \alpha)T_{new}
+	T_{current} = \alpha T_{new}  +  (1 - \alpha)T_{current}
 \]
+The constant $0 \leq \alpha \leq 1$ controls the tradeoff between a smooth
+throughput estimate ($\alpha$ closer to 0) and one that reacts quickly to
+changes ($\alpha$ closer to 1).
+
 \textbf{TODO: how to pick $\alpha$?}
 
 
@@ -167,11 +173,23 @@ stream). The manifest is encoded in XML; each encoding of the video is
 described by a \texttt{$<$media$>$} element, whose \texttt{bitrate} attribute
 you should find.
 
-Then your proxy replaces each chunk request with a request for the same chunk
-at the selected bitrate.
+Your proxy replaces each chunk request with a request for the same chunk at the
+selected bitrate (in Kbps) by modifying the HTTP request's Request-URI. Video
+chunk URIs are structured as follows:
+\begin{center}
+	\texttt{/path/to/video/$<$video-name$>$-$<$bitrate$>$Seq$<$num$>$-Frag$<$num$>$}
+\end{center}
 
-
-\textbf{TODO: describe how to change the request}
+For example, suppose the player requests fragment 3 of chunk 2 of the video Big
+Buck Bunny at 500 Kbps:
+\begin{center}
+	\texttt{/path/to/video/big\_buck\_bunny\_480p\_h264-500Seq2-Frag3}
+\end{center}
+To switch to a higher bitrate, e.g., 1000 Kbps, the proxy should modify the URI
+like this:
+\begin{center}
+	\texttt{/path/to/video/big\_buck\_bunny\_480p\_h264-1000Seq2-Frag3}
+\end{center}
 
 
 \subsubsection{Running the Proxy}
@@ -304,14 +322,142 @@ named \texttt{mydns.c}. Your proxy will use your resolver by including
 connection.
 
 
-\section{Starter Code}
+\section{Development Environment}
 \label{sec:starter}
+
+For this project, we are providing a virtual machine pre-configured with the
+software you will need. We strongly recommend that you do all development and
+testing in this VM. This section describes the VM and the starter code provided
+in it.
+
+\subsection{Virtual Box}
+
+The virtual machine disk (VMDK) we provide was created using VirtualBox, though
+you may be able to use it with other virtualization software. VirtualBox is a
+free download for Windows, OSX, and Linux on \url{https://www.virtualbox.org}.
+We've already set up an admin account:
+\begin{description}
+	\item[Username:] proj3
+	\item[Password:] proj3
+\end{description}
+
+
+\subsection{Starter Files}
+You will find the following files in the proj3's home directory:
+\begin{description}
+	\item[\texttt{mydns.h}] The interface for your DNS resolution library (\S{sec:dns-details}).
+
+	\item[\texttt{common}] Common code used by our network simulation and LSA generation scripts.
+
+	\item[\texttt{lsa}]
+	\item[\texttt{lsa/genlsa.py}] Generates LSAs for a provided network
+	topology. You may use this to generate LSA files beyond those we provide,
+	if you like.
+
+	\item[\texttt{netsim}]
+	\item[\texttt{netsim/netsim.py}] This script controls the simulated
+	network; see \S\ref{sec:netsim}.
+	\item[\texttt{netsim/tc\_setup.py}] This script adjusts link
+	characteristics (BW and latency) in the simulated network. It is called by
+	\texttt{netsim.py}; you do not need to interact with it directly.
+
+	\item[\texttt{topos}]
+	\item[\texttt{topos/topo1}]
+	\item[\texttt{topos/topo1/topo1.endpoints}] A list of IP addresses, one per line, for the endpoints (proxies and servers). (Used by \texttt{netsim.py} to create a fake network interface for each endhost.)
+	\item[\texttt{topos/topo1/topo1.servers}] A list IP addresses, one per line, for the video servers (a subset of \texttt{topo1.endpoints}). (Used by your DNS server.)
+	\item[\texttt{topos/topo1/topo1.links}] A list of links in the simulated network. (Used by \texttt{genlsa.py}.)
+	\item[\texttt{topos/topo1/topo1.events}] A list of changes in link characteristics (BW and latency) to ``play.'' See the comments in the file. (Used by \texttt{netsim.py}.)
+
+	\item[\texttt{videos}] \textbf{TODO: describe!}
+\end{description}
+
+
+\subsection{Network Simulation}
+\label{sec:netsim}
+
+To test your system, you will run everything (proxies, servers, and DNS server)
+on a simulated network in the VM. You control the simulated network with the
+\texttt{netsim.py} script. To start the network from the \texttt{netsim}
+directory:
+\begin{center}
+	\texttt{./netsim $<$endhosts$>$ $<$events$>$ start}
+\end{center}
+Starting the network creates a fake network interface for each IP address in
+the \texttt{.endhosts} file; this allows your proxies, Apache instances, and
+DNS server to bind to these IP addresses.
+
+To stop it once started (thereby removing the fake interfaces), run:
+\begin{center}
+	\texttt{./netsim $<$endhosts$>$ $<$events$>$ stop}
+\end{center}
+
+To facilitate testing your adaptive bitrate selection, the simulator can vary
+the bandwidth and latency between any pair of endpoints. To do so, add link
+changes to the \texttt{.events} file you pass to \texttt{netsim.py}. Events can
+run automatically according to timings specified in the file or they can wait
+to run until triggered by the user (see \texttt{topos/topo1/topo1.events} for
+an example). When your \texttt{.events} file is ready, tell \texttt{netsim.py}
+to run it:
+\begin{center}
+	\texttt{./netsim $<$endhosts$>$ $<$events$>$ run}
+\end{center}
+(Note that you must start the network before running any events. You can issue
+the \texttt{run} commands as many times as you want without restarting the
+network. Also note that the links stay as the last event configured them even
+when \texttt{netsim.py} finishes running.)
+
+
+
+
+
+\subsection{Videos}
+\label{sec:videos}
+
+\textbf{TODO: describe video chunks/manifest}
+
+
+
+\subsection{Apache}
+\label{sec:apache}
+
+\textbf{TODO: explain how to configure/run apache instances}
+
+
 
 
 \section{Hand In}
 
+\textbf{TODO: Autolab instructions}
+
 
 \section{Grading}
+
+Your grade will consist of the following components:
+
+\smallskip \noindent \textbf{Checkpoint 1} \textit{(10 points)}
+\begin{itemize}
+	\item DNS resolution library
+	\item DNS server with round robin load balancing
+	\item Pass-through proxy
+\end{itemize}
+
+\smallskip \noindent \textbf{DNS Resolution Library} \textit{(10 points)}
+
+\smallskip \noindent \textbf{DNS Server} \textit{(40 points)}
+\begin{itemize}
+	\item Round robin load balancing
+	\item LSA processing and ``geographic'' load balancing
+\end{itemize}
+
+\smallskip \noindent \textbf{Proxy} \textit{(40 points)}
+\begin{itemize}
+	\item Throughput estimation (EWMA)
+	\item Adaptive bitrate selection
+\end{itemize}
+
+\smallskip \noindent \textbf{Style??}
+
+\smallskip \noindent \textbf{Writeup??}
 
 
 \end{document}
