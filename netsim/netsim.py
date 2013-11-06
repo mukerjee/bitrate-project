@@ -3,6 +3,7 @@
 import sys
 sys.path.append('../common')
 
+import os
 import time
 import logging
 import argparse
@@ -11,6 +12,16 @@ from util import check_output, check_both, run_bg, strip_comments
 CLICK_CONF = 'autogen.click'
 CLICK = '/usr/local/bin/click'
 TC_SETUP = './tc_setup.py'
+
+def get_topo_file(suffix):
+    if args.topology[-1] == '/':
+        args.topology = args.topology[0:-1]
+    topo_name = os.path.basename(args.topology)
+    filepath = os.path.join(args.topology, '%s.%s' % (topo_name, suffix))
+    if not os.path.isfile(filepath):
+        logging.getLogger(__name__).error('Could not find %s' % filepath)
+        exit(-1)
+    return filepath
 
 def autogen_click_conf(servers_file, clients_file):
     logging.getLogger(__name__).debug('Autogenerating %s from %s and %s'\
@@ -45,7 +56,7 @@ def execute_event(event):
 
 def run_events():
     events = []
-    with open(args.events_file, 'r') as eventsf:
+    with open(get_topo_file('events'), 'r') as eventsf:
         for line in strip_comments(eventsf):
             events.append(line.split(' '))
     eventsf.closed
@@ -68,23 +79,27 @@ def start_network():
     logging.getLogger(__name__).info('Starting simulated network...')
 
     # Create fake NICs
-    autogen_click_conf(args.servers_file, args.clients_file)
+    autogen_click_conf(get_topo_file('servers'), get_topo_file('clients'))
     run_bg('%s %s' % (CLICK, CLICK_CONF))
 
     # Set up traffic shaping
     check_output('%s start' % TC_SETUP)
-    install_filters(args.links_file)
+    install_filters(get_topo_file('bottlenecks'))
 
     # TODO: launch apache instances
     logging.getLogger(__name__).info('Network started.')
 
 def stop_network():
     logging.getLogger(__name__).info('Stopping simulated network...')
+    # TODO: stop apache instances
+
+    # Stop traffic shaping
     try:
         check_output('%s stop' % TC_SETUP)
     except Exception as e:
         logging.getLogger(__name__).error(e)
 
+    # Destroy fake NICs
     try:
         check_both('killall -9 click', shouldPrint=False)
         time.sleep(0.1)
@@ -108,10 +123,7 @@ def main():
 if __name__ == "__main__":
     # set up command line args
     parser = argparse.ArgumentParser(description='Launch a simulated network.')
-    parser.add_argument('servers_file', help='the file containing the list of servers (as IP addresses)')
-    parser.add_argument('clients_file', help='the file containing the list of clients (as IP addresses)')
-    parser.add_argument('links_file', help='the file containing the list of bottleneck links')
-    parser.add_argument('events_file', help='the file containing the list of link characteristic changes')
+    parser.add_argument('topology', help='directory containing the topology files (topo.clients, topo.servers, topo.bottlenecks, topo.events, where topo is the name of the topology)')
     parser.add_argument('command', choices=['start','stop','restart','run'], help='start/stop/restart the network, or run a series of link events?')
     parser.add_argument('-q', '--quiet', action='store_true', default=False, help='only print errors')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='print debug info. --quiet wins if both are present')
