@@ -7,11 +7,91 @@ import os
 import time
 import logging
 import argparse
+import shutil
 from util import check_output, check_both, run_bg, strip_comments
 
+# click
 CLICK_CONF = 'autogen.click'
 CLICK = '/usr/local/bin/click'
+
+# tc
 TC_SETUP = './tc_setup.py'
+
+# apache
+APACHE = '/etc/init.d/apache2'
+APACHE_PORTS = '/etc/apache2/ports.conf'
+APACHE_PORTS_BAK = '%s.backup' % APACHE_PORTS
+APACHE_DEFAULT_SITE = '/etc/apache2/sites-available/default'
+APACHE_SITES_AVAILABLE = '/etc/apache2/sites-available'
+APACHE_SITES_ENABLED = '/etc/apache2/sites-enabled'
+
+
+# Prepare apache VirtualHost for each server ip in servers_file
+def configure_apache(servers_file):
+    try:
+        # back up the existing ports.conf
+        shutil.copyfile(APACHE_PORTS, APACHE_PORTS_BAK)
+            
+        with open(servers_file, 'r') as serversfile:
+            for line in strip_comments(serversfile):
+                ip = line.strip()
+
+                # append virtual hosts to ports.conf
+                with open(APACHE_PORTS, 'a') as portsfile:
+                        portsfile.write('\n\nNameVirtualHost %s:8080\n' % ip)
+                        portsfile.write('Listen %s:8080' % ip)
+                portsfile.closed
+
+                # make a conf file for this virtual host
+                confpath = os.path.join(APACHE_SITES_AVAILABLE, ip)
+                with open(APACHE_DEFAULT_SITE, 'r') as defaultfile:
+                    with open(confpath, 'w') as conffile:
+                        for line in defaultfile:
+                            if '<VirtualHost' in line:
+                                conffile.write('<VirtualHost %s:8080>\n' % ip)
+                            else:
+                                conffile.write(line)
+                    conffile.closed
+                defaultfile.closed
+
+                # symlink conf file to sites-enabled
+                linkpath = os.path.join(APACHE_SITES_ENABLED, ip)
+                if not os.path.islink(linkpath):
+                    os.symlink(confpath, linkpath)
+        
+        
+        serversfile.closed
+
+
+
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
+
+# Put apache back to normal
+def reset_apache(servers_file):
+    try:
+        # restore ports.conf from backup
+        if os.path.isfile(APACHE_PORTS_BAK):
+            shutil.move(APACHE_PORTS_BAK, APACHE_PORTS)
+        else:
+            logging.getLogger(__name__).warning('Could not find %s' % APACHE_PORTS_BAK)
+
+        # remove conf files
+        with open(servers_file, 'r') as serversfile:
+            for line in strip_comments(serversfile):
+                ip = line.strip()
+
+                confpath = os.path.join(APACHE_SITES_AVAILABLE, ip)
+                if os.path.isfile(confpath):
+                    os.remove(confpath)
+
+                linkpath = os.path.join(APACHE_SITES_ENABLED, ip)
+                if os.path.islink(linkpath):
+                    os.remove(linkpath)
+        serversfile.closed
+
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
 
 def get_topo_file(suffix):
     if args.topology[-1] == '/':
@@ -79,27 +159,39 @@ def start_network():
     logging.getLogger(__name__).info('Starting simulated network...')
 
     # Create fake NICs
+    logging.getLogger(__name__).info('Creating network interfaces...')
     autogen_click_conf(get_topo_file('servers'), get_topo_file('clients'))
     run_bg('%s %s' % (CLICK, CLICK_CONF))
 
     # Set up traffic shaping
+    logging.getLogger(__name__).info('Enabling traffic shaping...')
     check_output('%s start' % TC_SETUP)
     install_filters(get_topo_file('bottlenecks'))
 
-    # TODO: launch apache instances
+    # Launch apache instances
+    logging.getLogger(__name__).info('Configuring apache...')
+    configure_apache(get_topo_file('servers'))
+    check_output('%s restart' % APACHE, shouldPrint=False)
+
     logging.getLogger(__name__).info('Network started.')
 
 def stop_network():
     logging.getLogger(__name__).info('Stopping simulated network...')
-    # TODO: stop apache instances
+
+    # stop apache instances
+    logging.getLogger(__name__).info('Stopping apache...')
+    reset_apache(get_topo_file('servers'))
+    check_output('%s restart' % APACHE, shouldPrint=False)
 
     # Stop traffic shaping
+    logging.getLogger(__name__).info('Disabling traffic shaping...')
     try:
         check_output('%s stop' % TC_SETUP)
     except Exception as e:
         logging.getLogger(__name__).error(e)
 
     # Destroy fake NICs
+    logging.getLogger(__name__).info('Destroying network interfaces...')
     try:
         check_both('killall -9 click', shouldPrint=False)
         time.sleep(0.1)
