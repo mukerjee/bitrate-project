@@ -343,6 +343,8 @@ We've already set up an admin account:
 
 
 \subsection{Starter Files}
+\label{sec:starter-files}
+
 You will find the following files in the proj3's home directory:
 \begin{description}
 	\item[\texttt{mydns.h}] The interface for your DNS resolution library (\S{sec:dns-details}).
@@ -363,10 +365,13 @@ You will find the following files in the proj3's home directory:
 
 	\item[\texttt{topos}]
 	\item[\texttt{topos/topo1}]
-	\item[\texttt{topos/topo1/topo1.endpoints}] A list of IP addresses, one per line, for the endpoints (proxies and servers). (Used by \texttt{netsim.py} to create a fake network interface for each endhost.)
-	\item[\texttt{topos/topo1/topo1.servers}] A list IP addresses, one per line, for the video servers (a subset of \texttt{topo1.endpoints}). (Used by your DNS server.)
+	\item[\texttt{topos/topo1/topo1.clients}] A list of IP addresses, one per line, for the proxies. (Used by \texttt{netsim.py} to create a fake network interface for each proxy.)
+	\item[\texttt{topos/topo1/topo1.servers}] A list of IP addresses, one per line, for the video servers. (Used by your DNS server and by \texttt{netsim.py} to create a fake interface for each server.)
+	\item[\texttt{topos/topo1/topo1.dns}] A single IP address for your DNS server. (Used by \texttt{netsim.py} to create a fake interface for your DNS server.)
 	\item[\texttt{topos/topo1/topo1.links}] A list of links in the simulated network. (Used by \texttt{genlsa.py}.)
+	\item[\texttt{topos/topo1/topo1.bottlenecks}] A list of bottleneck links to be used in \texttt{topo1.events}. (See \S\ref{sec:netsim}.)
 	\item[\texttt{topos/topo1/topo1.events}] A list of changes in link characteristics (BW and latency) to ``play.'' See the comments in the file. (Used by \texttt{netsim.py}.)
+	\item[\texttt{topos/topo1/topo1.pdf}] A picture of the network.
 
 	\item[\texttt{videos}] \textbf{TODO: describe!}
 \end{description}
@@ -377,34 +382,63 @@ You will find the following files in the proj3's home directory:
 
 To test your system, you will run everything (proxies, servers, and DNS server)
 on a simulated network in the VM. You control the simulated network with the
-\texttt{netsim.py} script. To start the network from the \texttt{netsim}
-directory:
+\texttt{netsim.py} script. You need to provide the script with a directory
+containing a network topology, which consists of several files. We provide two
+sample toplogies; feel free to create your own. See \S\ref{sec:starter-files}
+for a description of each of the files comprising a topology. Note that
+\texttt{netsim.py} requires that each constituent file's prefix match the name
+of the topology (e.g., in the \texttt{topo1} directory, files are named
+\texttt{topo1.clients}, \texttt{topo1.servers}, etc.).
+
+To start the network from the \texttt{netsim} directory:
 \begin{center}
-	\texttt{./netsim $<$endhosts$>$ $<$events$>$ start}
+	\texttt{./netsim $<$topology$>$ start}
 \end{center}
 Starting the network creates a fake network interface for each IP address in
-the \texttt{.endhosts} file; this allows your proxies, Apache instances, and
-DNS server to bind to these IP addresses.
+the \texttt{.clients}, \texttt{.servers}, and \texttt{.dns} files; this allows
+your proxies, Apache instances, and DNS server to bind to these IP addresses.
 
 To stop it once started (thereby removing the fake interfaces), run:
 \begin{center}
-	\texttt{./netsim $<$endhosts$>$ $<$events$>$ stop}
+	\texttt{./netsim $<$topology$>$ stop}
 \end{center}
 
 To facilitate testing your adaptive bitrate selection, the simulator can vary
-the bandwidth and latency between any pair of endpoints. To do so, add link
-changes to the \texttt{.events} file you pass to \texttt{netsim.py}. Events can
-run automatically according to timings specified in the file or they can wait
-to run until triggered by the user (see \texttt{topos/topo1/topo1.events} for
-an example). When your \texttt{.events} file is ready, tell \texttt{netsim.py}
-to run it:
+the bandwidth and latency of any link designated as a bottleneck in your
+topology's \texttt{.bottlenecks} file. (Bottleneck links must be declared
+because our simulator limits you to adjusting the characterists of only one
+link between any pair of endpoints. This also means that some topologies simply
+cannot be simulated by our simulator.) To do so, add link changes to the
+\texttt{.events} file you pass to \texttt{netsim.py}. Events can run
+automatically according to timings specified in the file or they can wait to
+run until triggered by the user (see \texttt{topos/topo1/topo1.events} for an
+example). When your \texttt{.events} file is ready, tell \texttt{netsim.py} to
+run it:
 \begin{center}
-	\texttt{./netsim $<$endhosts$>$ $<$events$>$ run}
+	\texttt{./netsim $<$topology$>$ run}
 \end{center}
 (Note that you must start the network before running any events. You can issue
 the \texttt{run} commands as many times as you want without restarting the
-network. Also note that the links stay as the last event configured them even
-when \texttt{netsim.py} finishes running.)
+network. You may modify the \texttt{.events} file between runs, but you may
+\emph{not} modify any other topology files, including the \texttt{.bottlenecks}
+file, without restarting the network. Also note that the links stay as the last
+event configured them even when \texttt{netsim.py} finishes running.)
+
+\medskip \noindent \textbf{Link State Advertisements}~~You'll notice that the
+simulated network described above doesn't actually contain any routers ---
+we've taken them out of the picture to make your lives simpler by allowing you
+to independently set the bandwidth between any pair of endpoints (fake NICs).
+But, for the sake of the LSAs your DNS server needs to process, we need to
+\emph{pretend that there are fake routers}. Yes, this is a tad confusing and
+contrived. Sorry. Deal with it. So, in each sample topology, we provide a
+\texttt{.links} file containing pairs of network elements (hosts or routers)
+between which there is a link in this pretend fake network. If the endpoint is
+a host, use its fake IP address in the \texttt{.links} file. If it is a pretend
+fake router, we use any string (e.g., ``router1'').
+
+If want to make a new LSA file based on a new network topology for your
+testing, you can generate one using the \texttt{genlsa.py} script (run
+\texttt{./genlsa.py -h} for information on how to use it).
 
 
 
