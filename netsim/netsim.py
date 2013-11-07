@@ -7,8 +7,8 @@ import os
 import time
 import logging
 import argparse
-import shutil
 from util import check_output, check_both, run_bg, strip_comments
+from apache_setup import configure_apache, reset_apache, restart_apache
 
 # click
 CLICK_CONF = 'autogen.click'
@@ -17,81 +17,6 @@ CLICK = '/usr/local/bin/click'
 # tc
 TC_SETUP = './tc_setup.py'
 
-# apache
-APACHE = '/etc/init.d/apache2'
-APACHE_PORTS = '/etc/apache2/ports.conf'
-APACHE_PORTS_BAK = '%s.backup' % APACHE_PORTS
-APACHE_DEFAULT_SITE = '/etc/apache2/sites-available/default'
-APACHE_SITES_AVAILABLE = '/etc/apache2/sites-available'
-APACHE_SITES_ENABLED = '/etc/apache2/sites-enabled'
-
-
-# Prepare apache VirtualHost for each server ip in servers_file
-def configure_apache(servers_file):
-    try:
-        # back up the existing ports.conf
-        shutil.copyfile(APACHE_PORTS, APACHE_PORTS_BAK)
-            
-        with open(servers_file, 'r') as serversfile:
-            for line in strip_comments(serversfile):
-                ip = line.strip()
-
-                # append virtual hosts to ports.conf
-                with open(APACHE_PORTS, 'a') as portsfile:
-                        portsfile.write('\n\nNameVirtualHost %s:8080\n' % ip)
-                        portsfile.write('Listen %s:8080' % ip)
-                portsfile.closed
-
-                # make a conf file for this virtual host
-                confpath = os.path.join(APACHE_SITES_AVAILABLE, ip)
-                with open(APACHE_DEFAULT_SITE, 'r') as defaultfile:
-                    with open(confpath, 'w') as conffile:
-                        for line in defaultfile:
-                            if '<VirtualHost' in line:
-                                conffile.write('<VirtualHost %s:8080>\n' % ip)
-                            else:
-                                conffile.write(line)
-                    conffile.closed
-                defaultfile.closed
-
-                # symlink conf file to sites-enabled
-                linkpath = os.path.join(APACHE_SITES_ENABLED, ip)
-                if not os.path.islink(linkpath):
-                    os.symlink(confpath, linkpath)
-        
-        
-        serversfile.closed
-
-
-
-    except Exception as e:
-        logging.getLogger(__name__).error(e)
-
-# Put apache back to normal
-def reset_apache(servers_file):
-    try:
-        # restore ports.conf from backup
-        if os.path.isfile(APACHE_PORTS_BAK):
-            shutil.move(APACHE_PORTS_BAK, APACHE_PORTS)
-        else:
-            logging.getLogger(__name__).warning('Could not find %s' % APACHE_PORTS_BAK)
-
-        # remove conf files
-        with open(servers_file, 'r') as serversfile:
-            for line in strip_comments(serversfile):
-                ip = line.strip()
-
-                confpath = os.path.join(APACHE_SITES_AVAILABLE, ip)
-                if os.path.isfile(confpath):
-                    os.remove(confpath)
-
-                linkpath = os.path.join(APACHE_SITES_ENABLED, ip)
-                if os.path.islink(linkpath):
-                    os.remove(linkpath)
-        serversfile.closed
-
-    except Exception as e:
-        logging.getLogger(__name__).error(e)
 
 def get_topo_file(suffix):
     if args.topology[-1] == '/':
@@ -102,6 +27,14 @@ def get_topo_file(suffix):
         logging.getLogger(__name__).error('Could not find %s' % filepath)
         exit(-1)
     return filepath
+
+def get_server_ip_list():
+    ip_list = []
+    with open(get_topo_file('servers'), 'r') as serversfile:
+        for line in strip_comments(serversfile):
+            ip_list.append(line.strip())
+    serversfile.closed
+    return ip_list
 
 def autogen_click_conf(servers_file, clients_file):
     logging.getLogger(__name__).debug('Autogenerating %s from %s and %s'\
@@ -165,13 +98,20 @@ def start_network():
 
     # Set up traffic shaping
     logging.getLogger(__name__).info('Enabling traffic shaping...')
-    check_output('%s start' % TC_SETUP)
-    install_filters(get_topo_file('bottlenecks'))
+    try:
+        check_output('%s start' % TC_SETUP)
+        install_filters(get_topo_file('bottlenecks'))
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
 
     # Launch apache instances
     logging.getLogger(__name__).info('Configuring apache...')
-    configure_apache(get_topo_file('servers'))
-    check_output('%s restart' % APACHE, shouldPrint=False)
+    try:
+        configure_apache(get_server_ip_list())
+        restart_apache()
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
+
 
     logging.getLogger(__name__).info('Network started.')
 
@@ -180,8 +120,11 @@ def stop_network():
 
     # stop apache instances
     logging.getLogger(__name__).info('Stopping apache...')
-    reset_apache(get_topo_file('servers'))
-    check_output('%s restart' % APACHE, shouldPrint=False)
+    try:
+        reset_apache(get_server_ip_list())
+        restart_apache()
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
 
     # Stop traffic shaping
     logging.getLogger(__name__).info('Disabling traffic shaping...')
