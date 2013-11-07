@@ -8,11 +8,16 @@ import time
 import logging
 import argparse
 from util import check_output, check_both, run_bg, strip_comments
+from apache_setup import configure_apache, reset_apache, restart_apache
 
+# click
 CLICK_CONF = 'autogen.click'
 #CLICK = '~/click-2.0.1/userlevel/click'
 CLICK = '/usr/local/bin/click'
+
+# tc
 TC_SETUP = './tc_setup.py'
+
 
 def get_topo_file(suffix):
     if args.topology[-1] == '/':
@@ -23,6 +28,14 @@ def get_topo_file(suffix):
         logging.getLogger(__name__).error('Could not find %s' % filepath)
         exit(-1)
     return filepath
+
+def get_server_ip_list():
+    ip_list = []
+    with open(get_topo_file('servers'), 'r') as serversfile:
+        for line in strip_comments(serversfile):
+            ip_list.append(line.strip())
+    serversfile.closed
+    return ip_list
 
 def autogen_click_conf(servers_file, clients_file, dns_file):
     logging.getLogger(__name__).debug('Autogenerating %s from %s and %s'\
@@ -84,27 +97,49 @@ def start_network():
     logging.getLogger(__name__).info('Starting simulated network...')
 
     # Create fake NICs
+    logging.getLogger(__name__).info('Creating network interfaces...')
     autogen_click_conf(get_topo_file('servers'), get_topo_file('clients'), get_topo_file('dns'))
     run_bg('%s %s' % (CLICK, CLICK_CONF))
 
     # Set up traffic shaping
-    check_output('%s start' % TC_SETUP)
-    install_filters(get_topo_file('bottlenecks'))
+    logging.getLogger(__name__).info('Enabling traffic shaping...')
+    try:
+        check_output('%s start' % TC_SETUP)
+        install_filters(get_topo_file('bottlenecks'))
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
 
-    # TODO: launch apache instances
+    # Launch apache instances
+    logging.getLogger(__name__).info('Configuring apache...')
+    try:
+        configure_apache(get_server_ip_list())
+        restart_apache()
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
+
+
     logging.getLogger(__name__).info('Network started.')
 
 def stop_network():
     logging.getLogger(__name__).info('Stopping simulated network...')
-    # TODO: stop apache instances
+
+    # stop apache instances
+    logging.getLogger(__name__).info('Stopping apache...')
+    try:
+        reset_apache(get_server_ip_list())
+        restart_apache()
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
 
     # Stop traffic shaping
+    logging.getLogger(__name__).info('Disabling traffic shaping...')
     try:
         check_output('%s stop' % TC_SETUP)
     except Exception as e:
         logging.getLogger(__name__).error(e)
 
     # Destroy fake NICs
+    logging.getLogger(__name__).info('Destroying network interfaces...')
     try:
         check_both('killall -9 click', shouldPrint=False)
         time.sleep(0.1)
