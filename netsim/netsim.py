@@ -37,6 +37,40 @@ def get_server_ip_list():
     serversfile.closed
     return ip_list
 
+# move func to tc_setup? util?
+def bw_to_kbps(bw):
+    # TODO: make this more robust
+    if 'kbit' in bw:
+        return bw.split('kbit')[0]
+    elif 'mbit' in bw:
+        return str(int(bw.split('mbit')[0]) * 1000)
+    elif 'kbps' in bw:
+        return str(int(bw.split('kbps')[0]) * 8)
+    elif 'mbps' in bw:
+        return str(int(bw.split('mbps')[0]) * 1000 * 8)
+    elif 'bps' in bw:
+        return str(float(bw.split('bps')[0]) / 1000 * 8)
+    else:
+        return bw
+
+# move func to tc_setup? util?
+def lat_to_ms(lat):
+    # TODO: make this more robust
+    if 'msecs' in lat:
+        return lat.split('msecs')[0]
+    elif 'msec' in lat:
+        return lat.split('msec')[0]
+    elif 'ms' in lat:
+        return lat.split('ms')[0]
+    elif 'secs' in lat:
+        return str(int(lat.split('secs')[0]) * 1000)
+    elif 'sec' in lat:
+        return str(int(lat.split('sec')[0]) * 1000)
+    elif 's' in lat:
+        return str(int(lat.split('s')[0]) * 1000)
+    else:
+        return lat
+
 def autogen_click_conf(servers_file, clients_file, dns_file):
     logging.getLogger(__name__).debug('Autogenerating %s from %s and %s'\
         % (CLICK_CONF, servers_file, clients_file))
@@ -69,16 +103,27 @@ def execute_event(event):
     try:
         check_output('%s update -c %i -b %s -l %s'\
             % (TC_SETUP, int(event[1].split('link')[1]), event[2], event[3]))
+        
+        if args.log:
+            with open(args.log, 'a') as logfile:
+                logfile.write('%f %s %s %s\n' % (time.time(), event[1], bw_to_kbps(event[2]), lat_to_ms(event[3])))
+            logfile.closed
     except Exception as e:
         logging.getLogger(__name__).error(e)
 
 def run_events():
+    # Remove existing log file
+    if args.log and os.path.isfile(args.log):
+        os.remove(args.log)
+
+    # Read event list
     events = []
     with open(get_topo_file('events'), 'r') as eventsf:
         for line in strip_comments(eventsf):
             events.append(line.split(' '))
     eventsf.closed
 
+    # Run events
     logging.getLogger(__name__).info('Running link events...')
     for event in events:
         # decide when to execute this event
@@ -165,6 +210,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Launch a simulated network.')
     parser.add_argument('topology', help='directory containing the topology files (topo.clients, topo.servers, topo.bottlenecks, topo.events, where topo is the name of the topology)')
     parser.add_argument('command', choices=['start','stop','restart','run'], help='start/stop/restart the network, or run a series of link events?')
+    parser.add_argument('-l', '--log', default=None, help='log file for logging events (overwrites file if it already exists)')
     parser.add_argument('-q', '--quiet', action='store_true', default=False, help='only print errors')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='print debug info. --quiet wins if both are present')
     args = parser.parse_args()
