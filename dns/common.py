@@ -1,5 +1,6 @@
 #!/usr/bin/python
-import os, struct
+import os, struct, socket, time, random
+from dijkstra import getBestServer
 
 def s(i):
     return struct.pack('>H', i)
@@ -33,11 +34,15 @@ NUM_ADDITIONAL = 0
 QType = 1 # A record
 QClass = 1 # IN
 
-def serverSetup():
+LOG_FILE = None
+
+def serverSetup(servers_file, log):
+    global LOG_FILE
     global SERVERS
-    SERVERS = open('./servers.conf').read().split('\n')
+    SERVERS = open(servers_file).read().split('\n')
     if SERVERS[-1] == '':
         SERVERS = SERVERS[:-1]
+    LOG_FILE = open(log, 'w', 0)
 
 def genFlags(query):
     global FLAGS_QR, FLAGS_RA, NUM_ANSWERS, FLAGS
@@ -50,11 +55,11 @@ def genFlags(query):
     FLAGS_B2 = FLAGS_RA<<7 | FLAGS_RCode
     FLAGS = FLAGS_B1<<8 | FLAGS_B2
 
-def genMessage(query_str, query=1):
+def genMessage(query_str, query=1, ROUND_ROBIN=0, servers_file="", lsa_file="", addr="", logfile=None):
     global SERV_CURR
 
     if not query and len(SERVERS) == 0:
-        serverSetup()
+        serverSetup(servers_file, logfile)
 
     genFlags(query)
 
@@ -72,7 +77,8 @@ def genMessage(query_str, query=1):
                 break
             k += 1
         i = j+1
-    lens.append(len(query_str)-lens[-1]-1)
+    total_read = sum(lens)+len(lens)
+    lens.append(len(query_str)-total_read)
 
     # Insert lengths and names into message
     message += b(lens[0])
@@ -89,21 +95,30 @@ def genMessage(query_str, query=1):
     message += s(QClass)
 
     # build RR's
+    RR_ADDR = ""
     if not query:
         RR_NAME = 49164 #C0 0C
         RR_QTYPE = 1 #A record
         RR_QCLASS = 1 #IN
         RR_TTL = 201 # C9 --> 3:21
         RR_DATALENGTH = 4
-        RR_ADDR = SERVERS[SERV_CURR]
-        SERV_CURR = (SERV_CURR + 1) % len(SERVERS)
+        if ROUND_ROBIN:
+            RR_ADDR = SERVERS[SERV_CURR]
+            SERV_CURR = (SERV_CURR + 1) % len(SERVERS)
+        else:
+            RR_ADDR = getBestServer(addr[0], SERVERS, lsa_file)
         
         message += s(RR_NAME)+s(RR_QTYPE)+s(RR_QCLASS) + \
             struct.pack('>I',RR_TTL) + s(RR_DATALENGTH)
         RR_ADDR = [int(float(a)) for a in RR_ADDR.split('.')]
         for a in RR_ADDR:
             message += b(a)
-    return message
+        t = int(time.time())
+        out_addr = '.'.join([str(r) for r in RR_ADDR])
+        log_s= ' '.join([str(t),addr[0],query_str,out_addr])
+        print log_s
+        LOG_FILE.write(log_s+'\n')
+    return (message, RR_ADDR)
 
 def parseMessage(data, query=0):
     global TRANS_ID
@@ -172,3 +187,11 @@ def parseMessage(data, query=0):
 
 
     return (R_INPUT, RR_ADDR)
+
+def sendDNSQuery(query, local_ip, server_ip, server_port):
+    message = genMessage(query, 1)[0]
+    dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    dns_sock.bind((local_ip,random.randrange(3000,10000)))
+    dns_sock.sendto(message, (server_ip, server_port))
+    data, _ = dns_sock.recvfrom(1024)
+    return parseMessage(data, 0)[1]

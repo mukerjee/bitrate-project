@@ -10,6 +10,7 @@ import argparse
 from util import check_output, check_both, run_bg, strip_comments
 
 CLICK_CONF = 'autogen.click'
+#CLICK = '~/click-2.0.1/userlevel/click'
 CLICK = '/usr/local/bin/click'
 TC_SETUP = './tc_setup.py'
 
@@ -23,7 +24,7 @@ def get_topo_file(suffix):
         exit(-1)
     return filepath
 
-def autogen_click_conf(servers_file, clients_file):
+def autogen_click_conf(servers_file, clients_file, dns_file):
     logging.getLogger(__name__).debug('Autogenerating %s from %s and %s'\
         % (CLICK_CONF, servers_file, clients_file))
     with open(CLICK_CONF, 'w') as clickfile:
@@ -36,6 +37,10 @@ def autogen_click_conf(servers_file, clients_file):
             for line in strip_comments(clientsfile):
                 clickfile.write('KernelTun(%s/8) -> Discard;\n' % (line.strip()))
         clientsfile.closed
+        with open(dns_file, 'r') as dnsfile:
+            for line in strip_comments(dnsfile):
+                clickfile.write('KernelTun(%s/8) -> Discard;\n' % (line.strip()))
+        dnsfile.closed
     clickfile.closed
 
 def install_filters(links_file):
@@ -79,7 +84,7 @@ def start_network():
     logging.getLogger(__name__).info('Starting simulated network...')
 
     # Create fake NICs
-    autogen_click_conf(get_topo_file('servers'), get_topo_file('clients'))
+    autogen_click_conf(get_topo_file('servers'), get_topo_file('clients'), get_topo_file('dns'))
     run_bg('%s %s' % (CLICK, CLICK_CONF))
 
     # Set up traffic shaping
