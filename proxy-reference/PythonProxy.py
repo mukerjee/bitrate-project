@@ -29,7 +29,11 @@
 Copyright (c) <2009> <Fábio Domingues - fnds3000 in gmail.com> <MIT Licence>
 """
 
-import socket, thread, select, time, sys, random, re
+import sys
+sys.path.append('../dns')
+import socket, thread, select, time, random, re
+from common import sendDNSQuery
+
 
 __version__ = '0.1.0 Draft 1'
 BUFLEN = 8192
@@ -37,7 +41,25 @@ VERSION = 'Python Proxy/'+__version__
 HTTPVER = 'HTTP/1.1'
 BR = []
 AVG = 0
-ALPHA = .9
+ALPHA = .3
+
+USAGE = '%s <requesting-ip> <listen-port> <dns-ip> <dns-port> <log-file>' % (sys.argv[0])
+NAME = 'server.15-441.cs.cmu.edu'
+PORT = 8080
+
+INNER_IP = '0.0.0.0'
+DNS_IP = '0.0.0.0'
+DNS_PORT = -1
+RR_ADDR = ''
+LOG_FILE = None
+
+def getBR():
+    b = BR[0]
+    for i in BR:
+        if i < AVG:
+            b = i
+    return b
+
 
 class ConnectionHandler:
     def __init__(self, connection, address, timeout):
@@ -49,9 +71,15 @@ class ConnectionHandler:
         self.method_others()
         if 'Seg' in self.path:
             t_new = int(8*float(self.cl)/float(self.req_time)/1000)
-            print self.path + ' --> ' + str(t_new)
             AVG = (1-ALPHA)*AVG + ALPHA*t_new
-            print AVG
+
+            t = int(time.time())
+            b = getBR()
+            s = ' '.join([str(t),str(t_new),str(round(AVG)),str(b),RR_ADDR,self.path])
+            print s
+            LOG_FILE.write(s+'\n')
+            #print self.path + ' --> ' + str(t_new)
+            #print AVG
         self.client.close()
         self.target.close()
 
@@ -72,11 +100,7 @@ class ConnectionHandler:
         sys.stdout.flush()
         path = path.replace('big_buck_bunny.f4m','big_buck_bunny_nolist.f4m')
         
-        b = BR[0]
-        for i in BR:
-            if i < AVG:
-                b = i
-
+        b = getBR()     
         path = path.replace('1000',str(b))
         self.path = path
 
@@ -88,9 +112,18 @@ class ConnectionHandler:
         self.req_time = time.time() - self.req_start
 
     def _connect_target(self):
-        (soc_family, _, _, _, address) = socket.getaddrinfo('4.0.0.1', 8080)[0]
+        global RR_ADDR
+        # name = self.path.split('http://')[1].split('/')[0].split(':')[0]
+        # port = 80
+        # try:
+        #     port = self.path.split('http://')[1].split('/')[0].split(':')[1]
+        # except:
+        #     pass
+        if not RR_ADDR:
+            RR_ADDR = sendDNSQuery(NAME, INNER_IP, DNS_IP, DNS_PORT)
+        (soc_family, _, _, _, address) = socket.getaddrinfo(RR_ADDR, PORT)[0]
         self.target = socket.socket(soc_family)
-        self.target.bind(('3.0.0.1',random.randrange(3000,10000)))
+        self.target.bind((INNER_IP,random.randrange(3000,10000)))
         self.target.connect(address)
 
     def _read_write(self):
@@ -124,9 +157,18 @@ class ConnectionHandler:
             if count == time_out_max:
                 break
 
-def start_server(host='128.2.214.31', port=8081, timeout=5,
-                  handler=ConnectionHandler):
-    global BR, AVG
+def start_server(timeout=5, handler=ConnectionHandler):
+    global BR, AVG, INNER_IP, DNS_IP, DNS_PORT, LOG_FILE
+
+    if len(sys.argv) < 6:
+        print USAGE
+        exit(-1)
+
+    INNER_IP = sys.argv[1]
+    DNS_IP = sys.argv[3]
+    DNS_PORT = int(float(sys.argv[4]))
+    LOG_FILE = open(sys.argv[5], 'w', 0)
+
     v = open('/var/www/vod/big_buck_bunny.f4m').read()
     vi = [m.start() for m in re.finditer('bitrate=',v)]
     for i in vi:
@@ -134,11 +176,12 @@ def start_server(host='128.2.214.31', port=8081, timeout=5,
     BR = sorted(BR)
     print BR
     AVG = BR[0]
-    soc_type=socket.AF_INET
-    soc = socket.socket(soc_type)
+
+    port = int(float(sys.argv[2]))
+    soc = socket.socket(socket.AF_INET)
     soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    soc.bind((host, port))
-    print "Serving on %s:%d."%(host, port)#debug
+    soc.bind(('', port))
+    print "Serving on %d."% port#debug
     soc.listen(0)
     while 1:
         thread.start_new_thread(handler, soc.accept()+(timeout,))
