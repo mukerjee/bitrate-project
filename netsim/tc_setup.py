@@ -7,7 +7,7 @@ import argparse
 import hashlib
 from util import check_output, check_both
 
-TC='sudo /sbin/tc'
+TC='/sbin/tc'
 DEFAULT_CLASS=9999
 ROOT_Q_HANDLE=9999
 
