@@ -137,6 +137,35 @@ the best bitrate for the connection. See \S\ref{sec:proxy-details} for details.
 \subsection{Implementation Details}
 \label{sec:proxy-details}
 
+You are implementing a simple HTTP proxy. It accepts connections from web
+browsers, modifies video chunk requests as described below, resolves the web
+server's DNS name (part of the HTTP request), opens a connection with the
+resulting IP address, and forwards the modified request to the server. Any data
+(the video chunks) returned by the server should be forwarded, unmodified, to
+the browser.
+
+Your proxy should listen for connections on any IP address on the port
+specified as a command line argument (see below). When it connects to a server,
+it should first bind the socket to the fake IP address specified on the command
+line (note that this is somewhat atypical: you do not ordinarily
+\texttt{bind()} a client socket before connecting). Figure~\ref{fig:proxy}
+depcits this.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.6\textwidth]{figs/proxy.eps}
+	\caption{Your proxy should listen for browser connections on
+	\texttt{INADDR\_ANY} on the port specified on the command line. It should
+	then connect to web servers on sockets that have been bound to the proxy's
+	fake IP address (also specified on the command line).}
+
+	\label{fig:proxy}
+\end{figure}
+
+Your proxy should accept multiple concurrent connections using
+\texttt{select()}, as in project 1. It is fine to re-use \texttt{select()} and
+HTTP parsing code from project 1.
+
 \subsubsection{Throughput Calculation}
 Your proxy could estimate your connection's throughput once per chunk as
 follows. Note the start time, $t_s$, of each chunk request (i.e., save a
@@ -192,18 +221,29 @@ like this:
 \end{center}
 
 
+\subsubsection{Logging}
+
+\textbf{TODO: format}
+
+
 \subsubsection{Running the Proxy}
 
 By running \texttt{make} in the root of your
 submission directory, we should be able to create an executable called
 \texttt{proxy}, which should be invoked as follows:
 \begin{center}
-	\texttt{./proxy $<$listen-ip$>$ $<$listen-port$>$ $<$dns-ip$>$ $<$dns-port$>$}
+	\texttt{./proxy $<$log-file$>$ $<$listen-port$>$ $<$fake-ip$>$ $<$dns-ip$>$ $<$dns-port$>$}
 \end{center}
 
 \begin{description}
-	\item[\texttt{listen-ip}] The IP address your proxy should listen on.
-	\item[\texttt{listen-port}] The TCP port your proxy should listen on.
+	\item[\texttt{log-file}] The file path to which you should log the messages
+	described above.
+	\item[\texttt{listen-port}] The TCP port your proxy should listen on for
+	accepting connections from your browser.
+	\item[\texttt{fake-ip}] Your proxy should bind to this IP address \emph{for
+	outbound connections to the web servers}. You should \emph{not} bind your
+	browser listen socket to this IP address --- bind that socket to
+	\texttt{INADDR\_ANY}.
 	\item[\texttt{dns-ip}] IP address of the DNS server.
 	\item[\texttt{dns-port}] UDP port DNS server listens on.
 \end{description}
@@ -290,13 +330,14 @@ formats defined in section 4.1 of RFC 1035. To make your life easier:
 	\item[\texttt{TTL}] Set this to 0 in all responses (no caching).
 \end{description}
 
-\bigskip \noindent \textbf{Server.} Your DNS server will operate over UDP. It
-will bind to an IP address and port specified as a command line arguments. It
-need only respond to requests for \theurl; any other requests should generate a
-response with \texttt{RCODE} 3. By running \texttt{make} in the root of your
-submission directory, we should be able to create an executable called
-\texttt{nameserver}, which should be invoked as follows \emph{even if not all
-arguments are functional}:
+\subsubsection{DNS Server}
+
+Your DNS server will operate over UDP. It will bind to an IP address and port
+specified as a command line arguments. It need only respond to requests for
+\theurl; any other requests should generate a response with \texttt{RCODE} 3.
+By running \texttt{make} in the root of your submission directory, we should be
+able to create an executable called \texttt{nameserver}, which should be
+invoked as follows \emph{even if not all arguments are functional}:
 \begin{center}
 	\texttt{./nameserver [-r] $<$ip$>$ $<$port$>$ $<$servers$>$ $<$LSAs$>$}
 \end{center}
@@ -314,12 +355,17 @@ arguments are functional}:
 \end{description}
 
 
-\bigskip \noindent \textbf{Resolution Library.} The library offers one
-function: \texttt{resolve()}. We have provided the interface in
-\texttt{mydns.h}; you are to write the accompanying implementation in a file
-named \texttt{mydns.c}. Your proxy will use your resolver by including
-\texttt{mydns.h} and calling \texttt{resolve()} at the beginning of each new
-connection.
+\subsubsection{Resolution Library}
+The library offers one function: \texttt{resolve()}. We have provided the
+interface in \texttt{mydns.h}; you are to write the accompanying implementation
+in a file named \texttt{mydns.c}. Your proxy will use your resolver by
+including \texttt{mydns.h} and calling \texttt{resolve()} at the beginning of
+each new connection.
+
+
+\subsubsection{Logging}
+
+\textbf{TODO}
 
 
 \section{Development Environment}
@@ -461,7 +507,17 @@ testing, you can generate one using the \texttt{genlsa.py} script (run
 
 \section{Hand In}
 
-\textbf{TODO: Autolab instructions}
+\subsection{What to Submit}
+
+You will submit your code as a tarball named \texttt{team$<$num$>$.tar}. It
+should contain the following:
+
+
+\subsection{Where to Submit}
+
+- autolab
+- tarball either way
+- we strongly recommend git
 
 
 \section{Grading}
