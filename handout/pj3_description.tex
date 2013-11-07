@@ -81,10 +81,7 @@ Figure~\ref{fig:overview-fake} shows the pieces of the system; those shaded in
 gray will be written by you.
 
 \medskip\noindent \textbf{Browser.} You'll use an off-the-shelf web browser to play
-videos served by your CDN. Requests should be sent via a proxy (see below); you
-can specify an HTTP proxy in your browser's preferences, though we recommended
-using the FoxyProxy plugin for Firefox (which allows you to select from many
-proxies based on URL patterns).
+videos served by your CDN (via your proxy).
 
 \medskip \noindent \textbf{Proxy.} Rather than modify the video player itself, you will
 implement adaptive bitrate selection in an HTTP proxy. The player requests
@@ -120,18 +117,23 @@ which your browser will direct reqeusts.
 
 \subsection{Requirements}
 
-\bigskip \noindent \textbf{Checkpoint 1:}~~For the first checkpoint, your proxy
-should simply accept requests from the video player, resolve the server's
-hostname to an IP address, forward the requests to the server, and return the
-server's responses to the player. For this checkpoint you do not need to worry
-about throughput measurement or bitrate adaptation.
+\bigskip \noindent \textbf{Checkpoint 1:}~~~The first checkpoint is all about
+bitrate adaptation. There are two pieces:
 
-\textbf{TODO: need to handle multiple simultaneous connections?}
+\medskip \noindent \textit{(1) Implement your proxy.} Your proxy should
+calculate the throughput it receives from the video server and select the best
+bitrate for the connection. See \S\ref{sec:proxy-details} for details.
+
+\medskip \noindent \textit{(2) Explore the behavior of your proxy.} Once your
+proxy is working, launch two instances of it on the ``dumbbell'' topology
+(topo1) we provide. Running the dumbbell topology will also create two servers
+(listening on the IP addresses in \texttt{topo1.servers}); you should direct
+one proxy to each server. Once you've started playing both videos, run the
+topo1 events file (instructions in \S\ref{sec:netsim}).
+
+\textbf{TODO: details about what plots they should make as they vary $\alpha$}
 
 
-\bigskip \noindent \textbf{Checkpoint 2:}~~For the final submission, your proxy
-should calculate the throughput it receives from the video server and select
-the best bitrate for the connection. See \S\ref{sec:proxy-details} for details.
 
 
 \subsection{Implementation Details}
@@ -188,8 +190,6 @@ The constant $0 \leq \alpha \leq 1$ controls the tradeoff between a smooth
 throughput estimate ($\alpha$ closer to 0) and one that reacts quickly to
 changes ($\alpha$ closer to 1).
 
-\textbf{TODO: how to pick $\alpha$?}
-
 
 
 \subsubsection{Choosing a Bitrate}
@@ -222,22 +222,41 @@ like this:
 
 
 \subsubsection{Logging}
+\label{sec:proxy-logging}
 
-\textbf{TODO: format}
+We require that your proxy create a log of its activity in a very particular
+format. After each request, it should append the following line to the log:
+\begin{center}
+	\texttt{$<$time$>$ $<$request-tput$>$ $<$avg-tput$>$ $<$bitrate$>$ $<$request-ip$>$ $<$chunkname$>$}
+\end{center}
+
+\begin{description}
+	\item[\texttt{time}] The current time in seconds since the epoch.
+	\item[\texttt{request-tput}] The throughput you measured for the current
+	chunk in Kbps.
+	\item[\texttt{avg-tput}] Your current EWMA throughput estimate in Kbps.
+	\item[\texttt{bitrate}] The bitrate your proxy requested for this chunk in
+	Kbps.
+	\item[\texttt{request-ip}] The client IP address from which the proxy
+	received this request.
+	\item[\texttt{chunkname}] The name of the file your proxy requested from
+	the server (that is, the modified file name in the modified HTTP GET
+	message).
+\end{description}
 
 
 \subsubsection{Running the Proxy}
 
-By running \texttt{make} in the root of your
-submission directory, we should be able to create an executable called
-\texttt{proxy}, which should be invoked as follows:
+By running \texttt{make} in the root of your submission directory, we should be
+able to create an executable called \texttt{proxy}, which should be invoked as
+follows, \emph{even if not all arguments are functional at the first checkpoint}:
 \begin{center}
-	\texttt{./proxy $<$log-file$>$ $<$listen-port$>$ $<$fake-ip$>$ $<$dns-ip$>$ $<$dns-port$>$}
+	\texttt{./proxy $<$log$>$ $<$listen-port$>$ $<$fake-ip$>$ $<$dns-ip$>$ $<$dns-port$>$ [$<$www-ip$>$]}
 \end{center}
 
 \begin{description}
-	\item[\texttt{log-file}] The file path to which you should log the messages
-	described above.
+	\item[\texttt{log}] The file path to which you should log the messages
+	described in \S\ref{sec:proxy-logging}.
 	\item[\texttt{listen-port}] The TCP port your proxy should listen on for
 	accepting connections from your browser.
 	\item[\texttt{fake-ip}] Your proxy should bind to this IP address \emph{for
@@ -246,7 +265,17 @@ submission directory, we should be able to create an executable called
 	\texttt{INADDR\_ANY}.
 	\item[\texttt{dns-ip}] IP address of the DNS server.
 	\item[\texttt{dns-port}] UDP port DNS server listens on.
+	\item[\texttt{www-ip}] Your proxy should accept an optional argument
+	specifying the IP address of the web server from which it should request
+	video chunks. If this argument is not present, your proxy should obtain the
+	web server's IP address by querying your DNS server for the name \theurl.
 \end{description}
+
+To play a video through your proxy, point a browser on your VM to the URL\\
+\texttt{http://localhost:$<$listen-port$>$/index.html}. (You can also configure
+VirtualBox's port forwarding to send traffic from \texttt{$<$listen-port$>$} on
+the host machine to \texttt{$<$listen-port$>$} on your VM; this way you can
+play the video from your own web browser.)
 
 
 
@@ -268,29 +297,28 @@ periodically report their statuses to the DNS server).
 You will write a simple DNS server that implements load balancing two different
 ways: round-robin and geographic distance.
 
-\bigskip \noindent \textbf{Checkpoint 1:}~~For the first checkpoint, you must
-implement a simple round-robin based DNS load balancer. Your DNS process should
-take as input a list of video server IP addresses (see \S\ref{sec:dns-details});
-it responds to each request to resolve the name \theurl by returning the next
-IP address in the list, cycling back to the beginning when the list is
-exhausted.
+\bigskip \noindent \textbf{Checkpoint 2:}~~~DNS load balancing comes into play
+at the second checkpoint. You must implement the two load balancing strategies
+described below. In order for you proxy to be able to query your DNS server,
+you must also write an accompanying DNS resolution library (see
+\S\ref{sec:dns-details} for details).
 
-In order for you proxy to be able to query your DNS server, you must also write
-an accompanying DNS resolution library. (See \S\ref{sec:dns-details} for
-details.)
+\medskip \noindent \textit{(1) Round robin.} First, implement a simple
+round-robin based DNS load balancer. Your DNS process should take as input a
+list of video server IP addresses (the topology's \texttt{.servers} file ---
+\S\ref{sec:starter-files}) on the command line (\S\ref{sec:dns-details}); it
+responds to each request to resolve the name \theurl by returning the next IP
+address in the list, cycling back to the beginning when the list is exhausted.
 
-
-
-\bigskip \noindent \textbf{Checkpoint 2:}~~~For the second checkpoint, you will
-be somewhat more sophisticated. Now your DNS server must return the closest
-video server to the client based on the client's IP address. In the real world,
-this would be done by querying a database mapping IP prefixes to geographic
-locations. In your implementation, you will pretend that a link state routing
-protocol (e.g., OSPF) is used Internet-wide and that your DNS server
-participates in it. Your DNS server must process link state advertisements
-(LSAs), build a graph of the entire network, and run Dijkstra's shortest path
-algorithm on the graph to determine the closest video server for a given
-client.
+\medskip \noindent \textit{(2) Geographic distance.} Next you'll make your DNS
+server somewhat more sophisticated --- must return the closest video server to
+the client based on the client's IP address. In the real world, this would be
+done by querying a database mapping IP prefixes to geographic locations. In
+your implementation, you will pretend that a link state routing protocol (e.g.,
+OSPF) is used Internet-wide and that your DNS server participates in it. Your
+DNS server must process link state advertisements (LSAs), build a graph of the
+entire network, and run Dijkstra's shortest path algorithm on the graph to
+determine the closest video server for a given client.
 
 \emph{You do not need to implement LSA flooding.} We will provide you with a
 file containing a list of LSAs which your server would have received had you
@@ -299,14 +327,18 @@ formatted as follows:
 \begin{center}
 	\texttt{$<$sender$>$ $<$sequence number$>$ $<$neighbors$>$}
 \end{center}
-The \texttt{sender} is the IP address of the node that originated this LSA. The
-\texttt{sequence number} is an integer allowing you to order the LSAs from a
-given sender (you may assume sequence numbers don't wrap back to zero within
-the LSA file). \texttt{neighbors} is a comma-separated string of IP addresses
-denoting the sender's immediate (directly connected) neighbors.
 
-\textbf{Describe gotchas --- cite peterson
-davie?} 
+\begin{description}
+	\item[\texttt{sender}] The IP address of the node that originated this LSA. 
+	\item[\texttt{sequence number}] An integer allowing you to order the LSAs
+	from a given sender. Each node sends multiple LSAs; you should accept only
+	the most recent (\emph{even if they arrive out of order}).  You may assume
+	sequence numbers don't wrap back to zero within the LSA file and that nodes
+	in the network never reboot and start over at zero.
+	\item[\texttt{neighbors}] A comma-separated string of IP addresses denoting
+	the sender's immediate (directly connected) neighbors. 
+\end{description}
+
 
 
 \subsection{Implementation Details}
@@ -333,19 +365,21 @@ formats defined in section 4.1 of RFC 1035. To make your life easier:
 \subsubsection{DNS Server}
 
 Your DNS server will operate over UDP. It will bind to an IP address and port
-specified as a command line arguments. It need only respond to requests for
+specified as command line arguments. It need only respond to requests for
 \theurl; any other requests should generate a response with \texttt{RCODE} 3.
 By running \texttt{make} in the root of your submission directory, we should be
 able to create an executable called \texttt{nameserver}, which should be
 invoked as follows \emph{even if not all arguments are functional}:
 \begin{center}
-	\texttt{./nameserver [-r] $<$ip$>$ $<$port$>$ $<$servers$>$ $<$LSAs$>$}
+	\texttt{./nameserver [-r] $<$log$>$ $<$ip$>$ $<$port$>$ $<$servers$>$ $<$LSAs$>$}
 \end{center}
 
 \begin{description}
 	\item[\texttt{-r}] If present, this flag indicates the server should
 	perform round-robin load balancing instead of processing LSAs and returing
 	the client's closest server.
+	\item[\texttt{log}] The file path to which you should log the messages
+	as described below.
 	\item[\texttt{ip}] The IP address your server should listen on.
 	\item[\texttt{port}] The UDP port your server should listen on.
 	\item[\texttt{servers}] A text file containing a list of IP addresses, one
@@ -353,6 +387,21 @@ invoked as follows \emph{even if not all arguments are functional}:
 	\item[\texttt{LSAs}] A text file containing a list of LSAs, one per line,
 	in the format described above.
 \end{description}
+
+\bigskip \noindent \textbf{Logging}~~Like your proxy, your DNS server must log
+its activity in a specific format.  For each valid DNS query it services, it
+should append the following line to the log:
+\begin{center}
+	\texttt{$<$time$>$ $<$client-ip$>$ $<$query-name$>$ $<$response-ip$>$}
+\end{center}
+
+\begin{description}
+	\item[\texttt{time}] The current time in seconds since the epoch.
+	\item[\texttt{client-ip}] The IP address of the client who sent the query.
+	\item[\texttt{query-name}] The hostname the client is trying to resolve.
+	\item[\texttt{response-ip}] The IP address you return in response.
+\end{description}
+
 
 
 \subsubsection{Resolution Library}
@@ -363,9 +412,6 @@ including \texttt{mydns.h} and calling \texttt{resolve()} at the beginning of
 each new connection.
 
 
-\subsubsection{Logging}
-
-\textbf{TODO}
 
 
 \section{Development Environment}
@@ -526,28 +572,31 @@ Your grade will consist of the following components:
 
 \smallskip \noindent \textbf{Checkpoint 1} \textit{(10 points)}
 \begin{itemize}
-	\item DNS resolution library
-	\item DNS server with round robin load balancing
-	\item Pass-through proxy
+	\item Proxy
+	\item Plots/writeup (completion points)
 \end{itemize}
 
-\smallskip \noindent \textbf{DNS Resolution Library} \textit{(10 points)}
+\smallskip \noindent \textbf{DNS Resolution Library} \textit{(?? points)}
 
-\smallskip \noindent \textbf{DNS Server} \textit{(40 points)}
+\smallskip \noindent \textbf{DNS Server} \textit{(?? points)}
 \begin{itemize}
 	\item Round robin load balancing
 	\item LSA processing and ``geographic'' load balancing
 \end{itemize}
 
-\smallskip \noindent \textbf{Proxy} \textit{(40 points)}
+\smallskip \noindent \textbf{Proxy} \textit{(?? points)}
 \begin{itemize}
 	\item Throughput estimation (EWMA)
 	\item Adaptive bitrate selection
 \end{itemize}
 
+\smallskip \noindent \textbf{Writeup?} \textit{(?? points)}
+\begin{itemize}
+	\item analyze utilization, fairness, and smoothness as $\alpha$ varies
+\end{itemize}
+
 \smallskip \noindent \textbf{Style??}
 
-\smallskip \noindent \textbf{Writeup??}
 
 
 \end{document}
