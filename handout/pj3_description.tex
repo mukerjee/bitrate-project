@@ -83,13 +83,12 @@ gray will be written by you.
 \medskip\noindent \textbf{Browser.} You'll use an off-the-shelf web browser to play
 videos served by your CDN (via your proxy).
 
-\medskip \noindent \textbf{Proxy.} Rather than modify the video player itself, you will
-implement adaptive bitrate selection in an HTTP proxy. The player requests
-chunks with standard HTTP GET requests; your proxy will intercept these and
-modify them to retrieve whichever bitrate your algorithm deems appropriate. To
-simulate multiple clients, you will launch multiple instances of your proxy
-(each one binding to a different fake IP address). More detail in
-\S\ref{sec:proxy}.
+\medskip \noindent \textbf{Proxy.} Rather than modify the video player itself,
+you will implement adaptive bitrate selection in an HTTP proxy. The player
+requests chunks with standard HTTP GET requests; your proxy will intercept
+these and modify them to retrieve whichever bitrate your algorithm deems
+appropriate. To simulate multiple clients, you will launch multiple instances
+of your proxy.  More detail in \S\ref{sec:proxy}.
 
 \medskip \noindent \textbf{Web Server.} Video content will be served from an
 off-the-shelf web server (Apache). As with the proxy, you will run multiple
@@ -162,10 +161,10 @@ resulting IP address, and forwards the modified request to the server. Any data
 (the video chunks) returned by the server should be forwarded, unmodified, to
 the browser.
 
-Your proxy should listen for connections on any IP address on the port
-specified as a command line argument (see below). When it connects to a server,
-it should first bind the socket to the fake IP address specified on the command
-line (note that this is somewhat atypical: you do not ordinarily
+Your proxy should listen for connections from a browser on any IP address on
+the port specified as a command line argument (see below). When it connects to
+a server, it should first bind the socket to the fake IP address specified on
+the command line (note that this is somewhat atypical: you do not ordinarily
 \texttt{bind()} a client socket before connecting). Figure~\ref{fig:proxy}
 depcits this.
 
@@ -186,20 +185,21 @@ HTTP parsing code from project 1.
 
 \subsubsection{Throughput Calculation}
 \label{sec:throughput-estimation}
-Your proxy could estimate your connection's throughput once per chunk as
-follows. Note the start time, $t_s$, of each chunk request (i.e., save a
-timestamp when your proxy receives a request from the player). Save another
-timestamp, $t_f$, when you have finished receiving the chunk from the server.
-Now, given the size of the chunk, $B$, you can computer the throughput, $T$,
-your proxy saw for this chunk:
+Your proxy could estimate each stream's throughput once per chunk as
+follows. Note the start time, $t_s$, of each chunk request (i.e., include
+\texttt{time.h} and save a timestamp using \texttt{time()} when your proxy
+receives a request from the player). Save another timestamp, $t_f$, when you
+have finished receiving the chunk from the server.  Now, given the size of the
+chunk, $B$, you can compute the throughput, $T$, your proxy saw for this
+chunk:
 \[
 	T = \frac{B}{t_f - t_s}
 \]
 
 
-To smooth your current throughput estimation, your proxy should use an
+To smooth your throughput estimation, your proxy should use an
 exponentially-weighted moving average (EWMA). Every time you make a new
-measurement ($T_{new}$), update your current throughput estimation as follows:
+measurement ($T_{new}$), update your current throughput estimate as follows:
 \begin{equation}
 	T_{current} = \alpha T_{new}  +  (1 - \alpha)T_{current}
 \label{eq:ewma}
@@ -207,17 +207,23 @@ measurement ($T_{new}$), update your current throughput estimation as follows:
 The constant $0 \leq \alpha \leq 1$ controls the tradeoff between a smooth
 throughput estimate ($\alpha$ closer to 0) and one that reacts quickly to
 changes ($\alpha$ closer to 1). You will control $\alpha$ via a command line
-argument.
+argument. When a new stream starts, set $T_{current}$ to the lowest available
+bitrate for that video.
 
 
 
 \subsubsection{Choosing a Bitrate}
 
 Once your proxy has calculated the connection's current throughput, it should
-select the highest offered bitrate the connection can support. Your proxy
-should learn which bitrates are available for a given video by parsing the
-manifest file (the ``.f4m'' initially requested at the beginning of the
-stream). The manifest is encoded in XML; each encoding of the video is
+select the highest offered bitrate the connection can support. For this
+project, we say a connection can support a bitrate if the average throughput is
+at least 1.5 times the bitrate. For example, before your proxy should request
+chunks encoded at 1000 Kbps, its current throughput estimate should be at least
+1.5 Mbps.
+
+Your proxy should learn which bitrates are available for a given video by
+parsing the manifest file (the ``.f4m'' initially requested at the beginning of
+the stream). The manifest is encoded in XML; each encoding of the video is
 described by a \texttt{$<$media$>$} element, whose \texttt{bitrate} attribute
 you should find.
 
@@ -369,8 +375,8 @@ formatted as follows:
 \label{sec:dns-details}
 
 Your DNS implementation will consist of two pieces: your DNS server and your
-DNS resolution library. The two pieces should communicate using the DNS message
-formats defined in section 4.1 of RFC 1035. To make your life easier:
+client-side resolution library. The two pieces should communicate using the DNS
+message formats defined in section 4.1 of RFC 1035. To make your life easier:
 
 \begin{description}
 	\item[\texttt{AA}] Set this to 0 in requests, 1 in responses.
@@ -406,8 +412,8 @@ invoked as follows \emph{even if not all arguments are functional}:
 	the client's closest server.
 	\item[\texttt{log}] The file path to which you should log the messages
 	as described below.
-	\item[\texttt{ip}] The IP address your server should listen on.
-	\item[\texttt{port}] The UDP port your server should listen on.
+	\item[\texttt{ip}] The IP address on which your server should listen.
+	\item[\texttt{port}] The UDP port on which your server should listen.
 	\item[\texttt{servers}] A text file containing a list of IP addresses, one
 	per line, belonging to content servers.
 	\item[\texttt{LSAs}] A text file containing a list of LSAs, one per line,
@@ -445,8 +451,9 @@ each new connection.
 
 For this project, we are providing a virtual machine pre-configured with the
 software you will need. We strongly recommend that you do all development and
-testing in this VM. This section describes the VM and the starter code provided
-in it.
+testing in this VM; your code must compile and run correctly on this image as
+we will be using it for grading. This section describes the VM and the starter
+code it contains.
 
 \subsection{Virtual Box}
 
@@ -463,9 +470,12 @@ We've already set up an admin account:
 \subsection{Starter Files}
 \label{sec:starter-files}
 
-You will find the following files in the proj3's home directory:
+You will find the following files in
+\texttt{/home/proj3/bitrate-project-starter}. This directory is a git
+repository; as we find bugs in the starter code and commit fixes, you can get
+the update versions with a \texttt{git pull}.
 \begin{description}
-	\item[\texttt{mydns.h}] The interface for your DNS resolution library (\S{sec:dns-details}).
+	\item[\texttt{mydns.h}] The interface for your DNS resolution library (\S\ref{sec:dns-details}).
 
 	\item[\texttt{common}] Common code used by our network simulation and LSA generation scripts.
 
@@ -480,6 +490,10 @@ You will find the following files in the proj3's home directory:
 	\item[\texttt{netsim/tc\_setup.py}] This script adjusts link
 	characteristics (BW and latency) in the simulated network. It is called by
 	\texttt{netsim.py}; you do not need to interact with it directly.
+	\item[\texttt{netsim/apache\_setup.py}] This file contains code used by
+	\texttt{netsim.py} to start and stop Apache instances on the IP addresses
+	in your \texttt{.servers} file; you do not need to interact with it
+	directly.
 
 	\item[\texttt{grapher.py}] A script to produce plots of link utilization, fairness, and smoothness from log files. (See \S\ref{sec:proxy-reqs}.)
 
@@ -514,7 +528,7 @@ of the topology (e.g., in the \texttt{topo1} directory, files are named
 
 To start the network from the \texttt{netsim} directory:
 \begin{center}
-	\texttt{./netsim $<$topology$>$ start}
+	\texttt{./netsim.py $<$topology$>$ start}
 \end{center}
 Starting the network creates a fake network interface for each IP address in
 the \texttt{.clients}, \texttt{.servers}, and \texttt{.dns} files; this allows
@@ -522,7 +536,7 @@ your proxies, Apache instances, and DNS server to bind to these IP addresses.
 
 To stop it once started (thereby removing the fake interfaces), run:
 \begin{center}
-	\texttt{./netsim $<$topology$>$ stop}
+	\texttt{./netsim.py $<$topology$>$ stop}
 \end{center}
 
 To facilitate testing your adaptive bitrate selection, the simulator can vary
@@ -537,14 +551,14 @@ run until triggered by the user (see \texttt{topos/topo1/topo1.events} for an
 example). When your \texttt{.events} file is ready, tell \texttt{netsim.py} to
 run it:
 \begin{center}
-	\texttt{./netsim $<$topology$>$ run}
+	\texttt{./netsim.py $<$topology$>$ run}
 \end{center}
-(Note that you must start the network before running any events. You can issue
+Note that you must start the network before running any events. You can issue
 the \texttt{run} commands as many times as you want without restarting the
-network. You may modify the \texttt{.events} file between runs, but you may
+network. You may modify the \texttt{.events} file between runs, but you must
 \emph{not} modify any other topology files, including the \texttt{.bottlenecks}
 file, without restarting the network. Also note that the links stay as the last
-event configured them even when \texttt{netsim.py} finishes running.)
+event configured them even when \texttt{netsim.py} finishes running.
 
 \medskip \noindent \textbf{Link State Advertisements}~~You'll notice that the
 simulated network described above doesn't actually contain any routers ---
@@ -578,9 +592,9 @@ testing, you can generate one using the \texttt{genlsa.py} script (run
 
 You will use the Apache web server to server the video files.
 \texttt{netsim.py} automatically starts an instance of Apache for you on each
-IP address listed in your topology's \texttt{.servers} file. Each instance is
-configured to serve files from \texttt{/var/www}; we have put sample video
-chunks here for you.
+IP address listed in your topology's \texttt{.servers} file. Each instance
+listens on port 8080 and is configured to serve files from \texttt{/var/www};
+we have put sample video chunks here for you.
 
 
 
@@ -641,29 +655,39 @@ Your grade will consist of the following components:
 \smallskip \noindent \textbf{Checkpoint 1} \textit{(10 points)}
 \begin{itemize}
 	\item Proxy
-	\item Plots/writeup (completion points)
+	\item Writeup (completion points)
 \end{itemize}
 
-\smallskip \noindent \textbf{DNS Resolution Library} \textit{(?? points)}
-
-\smallskip \noindent \textbf{DNS Server} \textit{(?? points)}
+\smallskip \noindent \textbf{DNS Client-Side Resolution Library} \textit{(10 points)}
 \begin{itemize}
+	\item Correct DNS message format
+\end{itemize}
+
+\smallskip \noindent \textbf{DNS Server} \textit{(30 points)}
+\begin{itemize}
+	\item Correct DNS message format
 	\item Round robin load balancing
 	\item LSA processing and ``geographic'' load balancing
 \end{itemize}
 
-\smallskip \noindent \textbf{Proxy} \textit{(?? points)}
+\smallskip \noindent \textbf{Proxy} \textit{(30 points)}
 \begin{itemize}
 	\item Throughput estimation (EWMA)
 	\item Adaptive bitrate selection
 \end{itemize}
 
-\smallskip \noindent \textbf{Writeup?} \textit{(?? points)}
+\smallskip \noindent \textbf{Writeup} \textit{(15 points)}
 \begin{itemize}
-	\item analyze utilization, fairness, and smoothness as $\alpha$ varies
+	\item Plots of utilization, fairness, and smoothness for $\alpha \in \{0.1, 0.5, 0.9\}$
+	\item Discussion of tradeoffs for varying $\alpha$
 \end{itemize}
 
-\smallskip \noindent \textbf{Style??}
+\smallskip \noindent \textbf{Style} \textit{(5 points)}
+\begin{itemize}
+	\item Code thoroughly commented
+	\item Code organized and modular
+	\item README listing your files and what they contain
+\end{itemize}
 
 
 
