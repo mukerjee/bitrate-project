@@ -62,8 +62,6 @@ def configure_apache_ubuntu(ip_list):
         shutil.copyfile(APACHE_UBUNTU_PORTS, APACHE_UBUNTU_PORTS_BAK)
             
         for ip in ip_list:
-            ip = line.strip()
-
             # append virtual hosts to ports.conf
             with open(APACHE_UBUNTU_PORTS, 'a') as portsfile:
                     portsfile.write('\n\nNameVirtualHost %s:8080\n' % ip)
@@ -86,7 +84,6 @@ def configure_apache_ubuntu(ip_list):
             linkpath = os.path.join(APACHE_UBUNTU_SITES_ENABLED, ip)
             if not os.path.islink(linkpath):
                 os.symlink(confpath, linkpath)
-
 
     except Exception as e:
         logging.getLogger(__name__).error(e)
@@ -117,8 +114,6 @@ def reset_apache_ubuntu(ip_list):
 
         # remove conf files
         for ip in ip_list:
-            ip = line.strip()
-
             confpath = os.path.join(APACHE_UBUNTU_SITES_AVAILABLE, ip)
             if os.path.isfile(confpath):
                 os.remove(confpath)
