@@ -20,6 +20,9 @@ TC_SETUP = './tc_setup.py'
 
 
 def get_topo_file(suffix):
+    if suffix is 'events' and args.events:
+        return args.events
+
     if args.topology[-1] == '/':
         args.topology = args.topology[0:-1]
     topo_name = os.path.basename(args.topology)
@@ -211,6 +214,7 @@ if __name__ == "__main__":
     parser.add_argument('topology', help='directory containing the topology files (topo.clients, topo.servers, topo.bottlenecks, topo.events, where topo is the name of the topology)')
     parser.add_argument('command', choices=['start','stop','restart','run'], help='start/stop/restart the network, or run a series of link events?')
     parser.add_argument('-l', '--log', default=None, help='log file for logging events (overwrites file if it already exists)')
+    parser.add_argument('-e', '--events', default=None, help='specify a custom events file to use in place of the one contained in the topology directory')
     parser.add_argument('-q', '--quiet', action='store_true', default=False, help='only print errors')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='print debug info. --quiet wins if both are present')
     args = parser.parse_args()
