@@ -62,7 +62,7 @@ def is_apache_configured_fedora():
         conff.closed
     except Exception as e:
         logging.getLogger(__name__).error(e)
-    return round
+    return found
 
 def is_apache_configured():
     return is_apache_configured_ubuntu()
