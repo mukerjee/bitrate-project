@@ -6,17 +6,14 @@ import shutil
 import logging
 from util import check_output, strip_comments
 
+NETSIM_STRING = '# Modified by netsim'
+
 APACHE_UBUNTU = '/etc/init.d/apache2'
 APACHE_UBUNTU_PORTS = '/etc/apache2/ports.conf'
 APACHE_UBUNTU_PORTS_BAK = '%s.backup' % APACHE_UBUNTU_PORTS
 APACHE_UBUNTU_DEFAULT_SITE = '/etc/apache2/sites-available/default'
 APACHE_UBUNTU_SITES_AVAILABLE = '/etc/apache2/sites-available'
 APACHE_UBUNTU_SITES_ENABLED = '/etc/apache2/sites-enabled'
-
-#APACHE_FEDORA = '/usr/sbin/httpd'
-#APACHE_FEDORA_CONF = '/etc/httpd/conf/httpd.conf'
-#APACHE_FEDORA_CONF_BAK = '/etc/httpd/conf/httpd.conf.bak'
-#APACHE_FEDORA_VIRTUAL_HOST_TEMPLATE = '''
 
 APACHE_FEDORA = '/usr/local/apache2/bin/httpd'
 APACHE_FEDORA_CONF = '/usr/local/apache2/conf/httpd.conf'
@@ -41,6 +38,36 @@ Listen %s:8080
 
 </VirtualHost>'''
 
+def is_apache_configured_ubuntu():
+    found = False
+    try:
+        with open(APACHE_UBUNTU_PORTS, 'r') as portsf:
+            for line in portsf:
+                if NETSIM_STRING in line:
+                    found = True
+                    break
+        portsf.closed
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
+    return found
+
+def is_apache_configured_fedora():
+    found = False
+    try:
+        with open(APACHE_FEDORA_CONF, 'r') as conff:
+            for line in conff:
+                if NETSIM_STRING in line:
+                    found = True
+                    break
+        conff.closed
+    except Exception as e:
+        logging.getLogger(__name__).error(e)
+    return round
+
+def is_apache_configured():
+    return is_apache_configured_ubuntu()
+    #return is_apache_configured_fedora()
+
 
 def configure_apache_fedora(ip_list):
     try:
@@ -48,6 +75,7 @@ def configure_apache_fedora(ip_list):
         shutil.copyfile(APACHE_FEDORA_CONF, APACHE_FEDORA_CONF_BAK)
 
         with open(APACHE_FEDORA_CONF, 'a') as conffile:
+            conffile.write('%s\n' % NETSIM_STRING)
             for ip in ip_list:
                 conffile.write(APACHE_FEDORA_VIRTUAL_HOST_TEMPLATE % (ip, ip))
         conffile.closed
@@ -60,6 +88,9 @@ def configure_apache_ubuntu(ip_list):
     try:
         # back up the existing ports.conf
         shutil.copyfile(APACHE_UBUNTU_PORTS, APACHE_UBUNTU_PORTS_BAK)
+        with open(APACHE_UBUNTU_PORTS, 'a') as portsfile:
+            portsfile.write('%s\n' % NETSIM_STRING)
+        portsfile.closed
             
         for ip in ip_list:
             # append virtual hosts to ports.conf

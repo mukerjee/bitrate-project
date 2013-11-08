@@ -8,7 +8,7 @@ import time
 import logging
 import argparse
 from util import check_output, check_both, run_bg, strip_comments
-from apache_setup import configure_apache, reset_apache, restart_apache
+from apache_setup import configure_apache, reset_apache, restart_apache, is_apache_configured
 
 # click
 CLICK_CONF = 'autogen.click'
@@ -18,6 +18,19 @@ CLICK = '/usr/local/bin/click'
 # tc
 TC_SETUP = './tc_setup.py'
 
+def is_click_running():
+    return 'click' in check_both('ps -e | grep click | grep -v grep'\
+        , shouldPrint=False, check=False)[0][0]
+
+# Return True if a qdisc is already attached to the specified interface
+def is_tc_configured():
+    return 'htb' in check_both('%s show'\
+        % (TC_SETUP), shouldPrint=False, check=False)[0][0]
+
+def network_running():
+    return is_apache_configured()\
+        or is_click_running()\
+        or is_tc_configured()
 
 def get_topo_file(suffix):
     if suffix is 'events' and args.events:
@@ -142,6 +155,10 @@ def run_events():
     logging.getLogger(__name__).info('Done running events.')
 
 def start_network():
+    if network_running():
+        logging.getLogger(__name__).info('Some network components already running...')
+        stop_network()
+
     logging.getLogger(__name__).info('Starting simulated network...')
 
     # Create fake NICs
