@@ -41,9 +41,9 @@ VERSION = 'Python Proxy/'+__version__
 HTTPVER = 'HTTP/1.1'
 BR = []
 AVG = 0
-ALPHA = .3
+ALPHA = .5
 
-USAGE = '%s <requesting-ip> <listen-port> <dns-ip> <dns-port> <log-file>' % (sys.argv[0])
+USAGE = '%s <log> <listen-port> <fake-ip> <dns-ip> <dns-port> <alpha> [<www-ip>]' % (sys.argv[0])
 NAME = 'server.15-441.cs.cmu.edu'
 PORT = 8080
 
@@ -56,7 +56,7 @@ LOG_FILE = None
 def getBR():
     b = BR[0]
     for i in BR:
-        if i < AVG:
+        if i < 1.5*AVG:
             b = i
     return b
 
@@ -75,7 +75,7 @@ class ConnectionHandler:
 
             t = int(time.time())
             b = getBR()
-            s = ' '.join([str(t),str(t_new),str(round(AVG)),str(b),RR_ADDR,self.path])
+            s = ' '.join([str(t),str(self.req_time),str(t_new),str(round(AVG)),str(b),RR_ADDR,self.path])
             print s
             LOG_FILE.write(s+'\n')
             #print self.path + ' --> ' + str(t_new)
@@ -158,16 +158,19 @@ class ConnectionHandler:
                 break
 
 def start_server(timeout=5, handler=ConnectionHandler):
-    global BR, AVG, INNER_IP, DNS_IP, DNS_PORT, LOG_FILE
+    global BR, AVG, INNER_IP, DNS_IP, DNS_PORT, LOG_FILE, RR_ADDR
 
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 7:
         print USAGE
         exit(-1)
 
-    INNER_IP = sys.argv[1]
-    DNS_IP = sys.argv[3]
-    DNS_PORT = int(float(sys.argv[4]))
-    LOG_FILE = open(sys.argv[5], 'w', 0)
+    LOG_FILE = open(sys.argv[1], 'w', 0)
+    INNER_IP = sys.argv[3]
+    DNS_IP = sys.argv[4]
+    DNS_PORT = int(float(sys.argv[5]))
+    ALPHA = float(sys.argv[6])
+    if len(sys.argv) == 8:
+        RR_ADDR = sys.argv[7]
 
     v = open('/var/www/vod/big_buck_bunny.f4m').read()
     vi = [m.start() for m in re.finditer('bitrate=',v)]
