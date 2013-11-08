@@ -65,8 +65,8 @@ def is_apache_configured_fedora():
     return found
 
 def is_apache_configured():
-    return is_apache_configured_ubuntu()
-    #return is_apache_configured_fedora()
+    #return is_apache_configured_ubuntu()
+    return is_apache_configured_fedora()
 
 
 def configure_apache_fedora(ip_list):
@@ -121,8 +121,8 @@ def configure_apache_ubuntu(ip_list):
 
 # Prepare apache VirtualHost for each server ip in ip_list
 def configure_apache(ip_list):
-    configure_apache_ubuntu(ip_list)
-    #configure_apache_fedora(ip_list)
+    #configure_apache_ubuntu(ip_list)
+    configure_apache_fedora(ip_list)
 
 
 def reset_apache_fedora(ip_list):
@@ -159,8 +159,8 @@ def reset_apache_ubuntu(ip_list):
 
 # Put apache back to normal
 def reset_apache(ip_list):
-    reset_apache_ubuntu(ip_list)
-    #reset_apache_fedora(ip_list)
+    #reset_apache_ubuntu(ip_list)
+    reset_apache_fedora(ip_list)
 
 
 def restart_apache_fedora():
@@ -170,5 +170,5 @@ def restart_apache_ubuntu():
     check_output('%s restart' % APACHE_UBUNTU, shouldPrint=False)
 
 def restart_apache():
-    restart_apache_ubuntu()
-    #restart_apache_fedora()
+    #restart_apache_ubuntu()
+    restart_apache_fedora()
