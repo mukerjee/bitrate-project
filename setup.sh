@@ -1,6 +1,7 @@
 #! /bin/bash
 
 HOME=/home/proj3
+USERNAME=proj3
 
 PACKAGES=(gcc-c++ git wget vim tmux)
 
@@ -86,11 +87,12 @@ chmod 6755 $TC
 chmod 6755 $CLICK
 chmod 6755 $APACHE
 chmod 777 $APACHE_CONF_DIR
+chmod 777 $APACHE_CONF_DIR/httpd.conf
 
 # Clone starter code
 echo "Cloning starter code..."
 cd $HOME
-git clone $STARTER_REPO
+sudo -u $USERNAME git clone $STARTER_REPO
 
 
 echo "Done."
