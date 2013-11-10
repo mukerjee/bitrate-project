@@ -3,7 +3,7 @@
 HOME=/home/proj3
 USERNAME=proj3
 
-PACKAGES=(gcc-c++ git wget vim tmux kernel-modules-extra)
+PACKAGES=(gcc-c++ git wget vim tmux kernel-modules-extra tar)
 
 STARTER_REPO="https://github.com/dtnaylor/bitrate-project-starter.git"
 
