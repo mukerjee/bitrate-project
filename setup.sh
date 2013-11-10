@@ -3,7 +3,7 @@
 HOME=/home/proj3
 USERNAME=proj3
 
-PACKAGES=(gcc-c++ git wget vim tmux)
+PACKAGES=(gcc-c++ git wget vim tmux kernel-modules-extra)
 
 STARTER_REPO="https://github.com/dtnaylor/bitrate-project-starter.git"
 
@@ -17,12 +17,22 @@ CLICK_SRC_DIR="click-2.0.1"
 APACHE_DOWNLOAD="http://apache.mirrors.pair.com//httpd/httpd-2.2.25.tar.gz"
 APACHE_TARBALL="httpd-2.2.25.tar.gz"
 APACHE_SRC_DIR="httpd-2.2.25"
+F4F_DOWNLOAD="http://gs11697.sp.cs.cmu.edu:15441/adobe_f4f_apache_module_4_5_1_linux_x64.tar.gz"
+F4F_TARBALL="adobe_f4f_apache_module_4_5_1_linux_x64.tar.gz"
+F4F_SRC_DIR="adobe_f4f_apache_module_4_5_1_linux_x64"
+F4F_CONF="LoadModule f4fhttp_module modules/mod_f4fhttp.so\n
+<IfModule f4fhttp_module>\n
+<Location /vod>\n
+HttpStreamingEnabled true\n
+HttpStreamingContentPath \"/var/www/vod\"\n
+</Location>\n
+</IfModule>\n"
 
 TC=/usr/sbin/tc
 CLICK=/usr/local/bin/click
 APACHE=/usr/local/apache2/bin/httpd
 APACHE_CONF_DIR=/usr/local/apache2/conf
-
+APACHE_MODULES_DIR=/usr/local/apache2/modules
 
 install_tarball() {
 	cd $HOME
@@ -55,6 +65,10 @@ do
 	yum install $package
 done
 
+# Removing fedora firewall
+echo "removing fedora firewall"
+yum remove firewalld
+
 # Install Click 2.0.1
 echo "Installing click..."
 install_tarball $CLICK_DOWNLOAD $CLICK_TARBALL $CLICK_SRC_DIR
@@ -73,6 +87,17 @@ install_tarball $APACHE_DOWNLOAD $APACHE_TARBALL $APACHE_SRC_DIR
 ##yum install http://linuxdownload.adobe.com/adobe-release/adobe-release-i386-1.0-1.noarch.rpm -y   # 32-bit
 #rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-adobe-linux
 #yum install flash-plugin -y
+
+# Install Adobe f4f origin module for apache
+echo "Installing Adobe f4f origin module for apache..."
+cd $HOME
+wget $F4F_DOWNLOAD
+tar -xzf $F4F_TARBALL
+cp ./$F4F_SRC_DIR/* /$APACHE_MODULES_DIR
+if ! grep -q "f4f" $APACHE_CONF_DIR/httpd.conf
+then
+    echo -e $F4F_CONF >> $APACHE_CONF_DIR/httpd.conf
+fi
 
 # Copy www files to /var/www
 echo "Installing www files..."
