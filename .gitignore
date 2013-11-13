@@ -31,4 +31,7 @@
 *.pdf
 *.ps
 
+# vim
+*.swp
+
 netsim/autogen.click
