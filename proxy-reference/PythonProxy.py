@@ -56,7 +56,7 @@ LOG_FILE = None
 def getBR():
     b = BR[0]
     for i in BR:
-        if i < 1.5*AVG:
+        if i*1.5 < AVG:
             b = i
     return b
 
