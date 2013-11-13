@@ -1,0 +1,6 @@
+all:
+	tar -xf autograde.tar
+	tar -xf handin.tar
+	cd ???
+	make
+	./grader
