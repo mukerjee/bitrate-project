@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import os
 import unittest
 from grader_super import Project3Test, emit_scores
 
@@ -45,7 +46,7 @@ class Project3Checkpoint1Test(Project3Test):
     ########### TEST CASES ##########
 
     def test_writeup_exists(self):
-        pass # TODO: David
+        self.assertTrue(os.path.isfile('writeup.pdf'))
 
 
 if __name__ == '__main__':
