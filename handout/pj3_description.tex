@@ -71,7 +71,7 @@ support.
 Implementing an entire CDN is clearly a tall order, so let's simplify things.
 First, your entire system will run on one host; we're providing a network
 simulator (described in \S\ref{sec:starter}) that will allow you to run several
-processes with arbitrary IP addresses on one machine. Our simulater also allows
+processes with arbitrary IP addresses on one machine. Our simulator also allows
 you to assign arbitrary link characteristics (bandwidth and latency) to each
 pair of ``endhosts'' (processes). For this project, you will do your
 development and testing using a virtual machine we provide
@@ -111,7 +111,7 @@ use this throughput value to request better or lower quality encodings of the
 video, aiming to stream the highest quality encoding that the connection can
 handle. Rather than modifying an existing video client to perform bitrate
 adaptation, you will implement this functionality in an HTTP proxy through
-which your browser will direct reqeusts.
+which your browser will direct requests.
 
 
 \subsection{Requirements}
@@ -166,7 +166,7 @@ the port specified as a command line argument (see below). When it connects to
 a server, it should first bind the socket to the fake IP address specified on
 the command line (note that this is somewhat atypical: you do not ordinarily
 \texttt{bind()} a client socket before connecting). Figure~\ref{fig:proxy}
-depcits this.
+depicts this.
 
 \begin{figure}
 	\centering
@@ -231,7 +231,7 @@ Your proxy replaces each chunk request with a request for the same chunk at the
 selected bitrate (in Kbps) by modifying the HTTP request's Request-URI. Video
 chunk URIs are structured as follows:
 \begin{center}
-	\texttt{/path/to/video/$<$video-name$>$-$<$bitrate$>$Seq$<$num$>$-Frag$<$num$>$}
+	\texttt{/path/to/video/$<$bitrate$>$Seq$<$num$>$-Frag$<$num$>$}
 \end{center}
 
 For example, suppose the player requests fragment 3 of chunk 2 of the video Big
@@ -244,6 +244,14 @@ like this:
 \begin{center}
 	\texttt{/path/to/video/1000Seg2-Frag3}
 \end{center}
+
+\medskip \noindent \textbf{IMPORTANT:} When the video player requests
+\texttt{big\_buck\_bunny.f4m}, you should instead return
+\texttt{big\_buck\_bunny\_nolist.f4m}. This file does not list the available
+bitrates, preventing the video player from attempting its own bitrate
+adaptation. You proxy should, however, fetch \texttt{big\_buck\_bunny.f4m} for
+itself (i.e., don't return it to the client) so you can parse the list of
+available encodings as described above.
 
 
 \subsubsection{Logging}
@@ -542,7 +550,7 @@ To stop it once started (thereby removing the fake interfaces), run:
 To facilitate testing your adaptive bitrate selection, the simulator can vary
 the bandwidth and latency of any link designated as a bottleneck in your
 topology's \texttt{.bottlenecks} file. (Bottleneck links must be declared
-because our simulator limits you to adjusting the characterists of only one
+because our simulator limits you to adjusting the characteristics of only one
 link between any pair of endpoints. This also means that some topologies simply
 cannot be simulated by our simulator.) To do so, add link changes to the
 \texttt{.events} file you pass to \texttt{netsim.py}. Events can run
@@ -603,7 +611,8 @@ we have put sample video chunks here for you.
 
 \subsection{What to Submit}
 
-You will submit your code as a tarball named \texttt{team$<$num$>$.tar}. It
+You will submit your code as a tarball named \texttt{team$<$num$>$.tar}.
+Untarring this file should give us a directory named \texttt{handin} which
 should contain the following:
 
 \medskip \noindent \textbf{Checkpoint 1:}
@@ -644,7 +653,7 @@ project, we are still working out some kinks --- stay tuned. You will submit a
 tarball either way (either to autolab or directly to us via email).
 
 Since we will not be using git for submission, you are not required to use it.
-However, we \emph{strongly} recommend using a git repository for devleopment,
+However, we \emph{strongly} recommend using a git repository for development,
 especially since you are writing code with a partner.
 
 
