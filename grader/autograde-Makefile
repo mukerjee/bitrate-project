@@ -1,6 +1,7 @@
 all:
 	tar -xf autograde.tar
 	tar -xf handin.tar
-	cd ???
+	cp -r autograde/* handin/
+	cd handin
 	make
-	./grader
+	./grader_cp1.py

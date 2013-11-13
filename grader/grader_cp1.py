@@ -4,17 +4,19 @@ import unittest
 from grader_super import Project3Test, emit_scores
 
 TEST_VALUES = {
-    'test_one': 4,
-    'test_two': 4,
-    'test_three': 1,
-    'test_four': 1
+    'test_proxy_simple': 2,
+    'test_proxy_adaptation': 2,
+    'test_proxy_multiple_clients': 2,
+    'test_proxy_alpha': 2,
+    'test_writeup_exists': 2
 }
 
 TEST_CATEGORIES = {
-    'test_one': 'proxy',
-    'test_two': 'proxy',
-    'test_three': 'writeup',
-    'test_four': 'proxy'
+    'test_proxy_simple': 'proxy',
+    'test_proxy_adaptation': 'proxy',
+    'test_proxy_multiple_clients': 'proxy',
+    'test_proxy_alpha': 'proxy',
+    'test_writeup_exists': 'writeup'
 }
 
 class Project3Checkpoint1Test(Project3Test):
@@ -42,17 +44,17 @@ class Project3Checkpoint1Test(Project3Test):
     
     ########### TEST CASES ##########
 
-    def test_four(self):
-        print 'test four'
-        self.assertEqual(1, 2)
+    def test_writeup_exists(self):
+        pass # TODO: David
 
 
 if __name__ == '__main__':
     suite = unittest.TestSuite()
-    suite.addTest(Project3Checkpoint1Test('test_one'))
-    suite.addTest(Project3Checkpoint1Test('test_two'))
-    suite.addTest(Project3Checkpoint1Test('test_three'))
-    suite.addTest(Project3Checkpoint1Test('test_four'))
+    suite.addTest(Project3Checkpoint1Test('test_proxy_simple', 'topos/one-client'))  # TODO: make this topo (David)
+    suite.addTest(Project3Checkpoint1Test('test_proxy_adaptation', 'topos/one-client'))
+    suite.addTest(Project3Checkpoint1Test('test_proxy_multiple_clients', 'topos/two-clients'))
+    suite.addTest(Project3Checkpoint1Test('test_proxy_alpha', 'topos/???'))
+    suite.addTest(Project3Checkpoint1Test('test_writeup_exists'))
     results = unittest.TextTestRunner(verbosity=2).run(suite)
 
     emit_scores(results, TEST_VALUES, TEST_CATEGORIES)
