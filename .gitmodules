@@ -1,0 +1,3 @@
+[submodule "bitrate-project-starter"]
+	path = bitrate-project-starter
+	url = git@github.com:dtnaylor/bitrate-project-starter.git
