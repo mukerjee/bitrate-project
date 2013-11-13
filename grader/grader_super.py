@@ -105,7 +105,7 @@ class Project3Test(unittest.TestCase):
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))  # TODO: make this file (David)
 
         # TODO: send a bunch of gets to each (need threads so requests don't alternate??)
-        # TODO: check BW each is getting; should be roughly equal (abs val of diff less than some thresh?)
+        # TODO: check BW each is getting; should be roughly equal (use assertAlmostEqual?? http://docs.python.org/2/library/unittest.html#unittest.TestCase.assertAlmostEqual)
 
     
     def test_proxy_alpha(self):
