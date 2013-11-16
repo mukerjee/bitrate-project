@@ -6,15 +6,19 @@ sys.path.append('../common')
 import os
 import json
 import unittest
-from util import check_output, check_both
+import requests
+import hashlib
+from threading import Thread
+from util import check_output, check_both, run_bg
 
-NETSIM = './netsim.py'
+NETSIM = '../netsim/netsim.py'
 
 class Project3Test(unittest.TestCase):
 
-    def __init__(self, test_name, topo=None):
+    def __init__(self, test_name, topo_dir=None):
         super(Project3Test, self).__init__(test_name)
-        self.topo = topo
+        self.topo_dir = topo_dir
+        self.exc_info = []
 
     ########### SETUP/TEARDOWN ##########
 
@@ -41,7 +45,7 @@ class Project3Test(unittest.TestCase):
     ########## HELPER FUNCTIONS ##########
 
     def run_proxy(self, log, alpha, listenport, fakeip, dnsip, dnsport, serverip=''):
-        run_bg('./proxy %s %s %s %s %s %s %s'\
+        run_bg('../proxy/proxy %s %s %s %s %s %s %s'\
             % (log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
 
     def run_events(self, events_file=None, bg=False):
@@ -54,11 +58,11 @@ class Project3Test(unittest.TestCase):
             check_output(cmd)
 
     def start_netsim(self):
-        if topo_dir:
+        if self.topo_dir:
             check_output('%s %s start' % (NETSIM, self.topo_dir))
     
     def stop_netsim(self):
-        if topo_dir:
+        if self.topo_dir:
             check_output('%s %s stop' % (NETSIM, self.topo_dir))
 
     # Returns log entries as lists, one at a time. Use in for loop,
@@ -70,60 +74,115 @@ class Project3Test(unittest.TestCase):
                 if line:
                     yield line.split(' ')
         logf.closed
-    
+
+
+
+    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0):
+        HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
+
+        # send a few gets (until we think their estimate should have stabilized)
+        for i in xrange(num_gets):
+            r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
+
+        # check what bitrate they're requesting
+        tputs = []
+        tput_avgs = []
+        bitrates = []
+        i = 0
+        for entry in self.iter_log(log_file):
+            i += 1
+            if i <= ignore: continue
+            tputs.append(float(entry[2]))
+            tput_avgs.append(float(entry[3]))
+            bitrates.append(int(float(entry[4])))
+        tputs = tputs[1:-1]
+        tput_avgs = tput_avgs[1:-1]
+        bitrates = bitrates[1:-1]
+        tput = float(sum(tputs))/len(tputs)
+        tput_avg = float(sum(tput_avgs))/len(tput_avgs)
+        bitrate = float(sum(bitrates))/len(bitrates)
+        print tput, tput_avg, bitrate
+
+        try: 
+            self.assertTrue(abs(tput - link_bw) < .25*link_bw)
+            self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*.25*link_bw)
+            self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*.1*expect_br)
+
+            # check the hash of the last chunk we requested
+            self.assertTrue(hashlib.sha256(r.content).hexdigest() == HASH_VALUE[expect_br])
+        except Exception, e:
+            self.exc_info = sys.exc_info()
+
+    def check_errors(self):
+        if self.exc_info:
+            raise self.exc_info[1], None, self.exc_info[2]
+
+
+    def get_log_switch_len(self, log, num_trials, start_br, end_br):
+        entries = [e for e in self.iter_log(log)]
+        entries = entries[num_trials:]
+        switch = 0
+        for i,e in enumerate(entries):
+            if float(e[4]) == end_br and switch == 0:
+                switch = i
+            if float(e[4]) == start_br:
+                switch = 0
+        return switch
+
+    def run_alpha_test(self, alpha, num_trials):
+        self.run_proxy('proxy.log', alpha, '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
+        self.run_events(os.path.join(self.topo_dir, 'adaptation-2000.events')) 
+        self.check_gets('1.0.0.1', '8081', num_trials, 'proxy.log', 2000, 1000, 0, alpha)
+        self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
+        self.check_gets('1.0.0.1', '8081', num_trials/2, 'proxy.log', 900, 500, num_trials, alpha)
+        self.check_errors()
+        return self.get_log_switch_len('proxy.log', num_trials, 1000, 500)
+
+
+
     ########### TEST CASES ##########
 
     def test_proxy_simple(self):
         self.run_proxy('proxy.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
-        self.run_events(os.path.join(self.topo_dir, 'simple.events'))  # TODO: make this file (David)
-
-        # TODO: send a bunch of gets (until we think their estimate should have stabilized)
-
-        # TODO: check what bitrate they're requesting
-        for entry in iter_log('proxy.log'):
-            pass # TODO: some kind of check here
-
-        # TODO: check the hash of the last chunk we requested
-
+        self.run_events(os.path.join(self.topo_dir, 'simple.events'))
+        self.check_gets('1.0.0.1', '8081', 5, 'proxy.log', 900, 500)
+        self.check_errors()
+        print 'done test_proxy_simple'
     
     def test_proxy_adaptation(self):
         self.run_proxy('proxy.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
-        self.run_events(os.path.join(self.topo_dir, 'adaptation-1600.events'))  # TODO: make this file (David)
-
-        # TODO: send a bunch of gets
-        # TODO: check their bitrate (log and/or hash?) -- should be 1000
-
-        self.run_events(os.path.join(self.topo_dir, 'adaptation-800.events'))  # TODO: make this file (David)
-        
-        # TODO: send a bunch of gets
-        # TODO: check their bitrate (log and/or hash?) -- should be 500
-
+        self.run_events(os.path.join(self.topo_dir, 'adaptation-2000.events')) 
+        self.check_gets('1.0.0.1', '8081', 5, 'proxy.log', 2000, 1000)
+        self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
+        self.check_gets('1.0.0.1', '8081', 5, 'proxy.log', 900, 500, 5)
+        self.check_errors()
+        print 'done test_proxy_adaptation'
     
     def test_proxy_multiple_clients(self):
         self.run_proxy('proxy1.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '3.0.0.1')
-        self.run_proxy('proxy2.log', '1', '8082', '2.0.0.1', '0.0.0.0', '0', '4.0.0.1')
-        self.run_events(os.path.join(self.topo_dir, 'multiple.events'))  # TODO: make this file (David)
-
-        # TODO: send a bunch of gets to each (need threads so requests don't alternate??)
-        # TODO: check BW each is getting; should be roughly equal (use assertAlmostEqual?? http://docs.python.org/2/library/unittest.html#unittest.TestCase.assertAlmostEqual)
-
+        self.run_proxy('proxy2.log', '1', '8082', '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
+        self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
+        ts = []
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, 'proxy1.log', 950, 500)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, 'proxy2.log', 950, 500)))
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
+        self.check_errors()
+        print 'done test_proxy_multiple_clients'
     
     def test_proxy_alpha(self):
-        pass
-
-        # TODO: finish this test. I'm leaving it blank for now --- we can either
-        # go with the script you put in the google doc, or do this, which might
-        # be easier:
-
-        # TODO: start one proxy with alpha 0.1
-        # TODO: start link @ 1600 kbps
-        # TODO: send a bunch of gets
-        # TODO: set link to 800 kbps
-        # TODO: send a bunch more gets
-        # TODO: iterate through log file, counting how many requests it took for them to udpate their BW
-
-        # TODO: repeat this for alpha = 0.5 and 0.9. Compare how long it took to switch bitrates for each to make sure alpha is functioning properly.
-
+        log_switch = []
+        log_switch.append(self.run_alpha_test('0.1', 20))
+        check_output('killall -9 proxy')
+        log_switch.append(self.run_alpha_test('0.5', 10))
+        check_output('killall -9 proxy')
+        log_switch.append(self.run_alpha_test('0.9', 10))
+        print log_switch
+        self.assertTrue(log_switch[0] >= log_switch[1])
+        self.assertTrue(log_switch[1] >= log_switch[2])
+        print 'done test_proxy_alpha'
 
 
 def emit_scores(test_results, test_values, test_categories):

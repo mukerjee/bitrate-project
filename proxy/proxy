@@ -123,7 +123,7 @@ class ConnectionHandler:
             RR_ADDR = sendDNSQuery(NAME, INNER_IP, DNS_IP, DNS_PORT)
         (soc_family, _, _, _, address) = socket.getaddrinfo(RR_ADDR, PORT)[0]
         self.target = socket.socket(soc_family)
-        self.target.bind((INNER_IP,random.randrange(3000,10000)))
+        self.target.bind((INNER_IP,0))#random.randrange(3000,10000)))
         self.target.connect(address)
 
     def _read_write(self):
@@ -158,17 +158,17 @@ class ConnectionHandler:
                 break
 
 def start_server(timeout=5, handler=ConnectionHandler):
-    global BR, AVG, INNER_IP, DNS_IP, DNS_PORT, LOG_FILE, RR_ADDR
+    global BR, AVG, INNER_IP, DNS_IP, DNS_PORT, LOG_FILE, RR_ADDR, ALPHA
 
     if len(sys.argv) < 7:
         print USAGE
         exit(-1)
 
     LOG_FILE = open(sys.argv[1], 'w', 0)
-    INNER_IP = sys.argv[3]
-    DNS_IP = sys.argv[4]
-    DNS_PORT = int(float(sys.argv[5]))
-    ALPHA = float(sys.argv[6])
+    ALPHA = float(sys.argv[2])
+    INNER_IP = sys.argv[4]
+    DNS_IP = sys.argv[5]
+    DNS_PORT = int(float(sys.argv[6]))
     if len(sys.argv) == 8:
         RR_ADDR = sys.argv[7]
 
@@ -180,7 +180,7 @@ def start_server(timeout=5, handler=ConnectionHandler):
     print BR
     AVG = BR[0]
 
-    port = int(float(sys.argv[2]))
+    port = int(float(sys.argv[3]))
     soc = socket.socket(socket.AF_INET)
     soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     soc.bind(('', port))

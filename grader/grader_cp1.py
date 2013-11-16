@@ -51,11 +51,11 @@ class Project3Checkpoint1Test(Project3Test):
 
 if __name__ == '__main__':
     suite = unittest.TestSuite()
-    suite.addTest(Project3Checkpoint1Test('test_proxy_simple', 'topos/one-client'))  # TODO: make this topo (David)
-    suite.addTest(Project3Checkpoint1Test('test_proxy_adaptation', 'topos/one-client'))
-    suite.addTest(Project3Checkpoint1Test('test_proxy_multiple_clients', 'topos/two-clients'))
-    suite.addTest(Project3Checkpoint1Test('test_proxy_alpha', 'topos/???'))
-    suite.addTest(Project3Checkpoint1Test('test_writeup_exists'))
+    suite.addTest(Project3Checkpoint1Test('test_proxy_simple', './topos/one-client'))
+    suite.addTest(Project3Checkpoint1Test('test_proxy_adaptation', './topos/one-client'))
+    suite.addTest(Project3Checkpoint1Test('test_proxy_multiple_clients', './topos/two-clients'))
+    suite.addTest(Project3Checkpoint1Test('test_proxy_alpha', './topos/one-client'))
+    #suite.addTest(Project3Checkpoint1Test('test_writeup_exists'))
     results = unittest.TextTestRunner(verbosity=2).run(suite)
 
     emit_scores(results, TEST_VALUES, TEST_CATEGORIES)
