@@ -34,4 +34,4 @@
 # vim
 *.swp
 
-netsim/autogen.click
+*/autogen.click
