@@ -12,6 +12,7 @@ from threading import Thread
 from util import check_output, check_both, run_bg
 
 NETSIM = '../netsim/netsim.py'
+PROXY = '../proxy/proxy'
 
 class Project3Test(unittest.TestCase):
 
@@ -45,8 +46,8 @@ class Project3Test(unittest.TestCase):
     ########## HELPER FUNCTIONS ##########
 
     def run_proxy(self, log, alpha, listenport, fakeip, dnsip, dnsport, serverip=''):
-        run_bg('../proxy/proxy %s %s %s %s %s %s %s'\
-            % (log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
+        run_bg('%s %s %s %s %s %s %s %s'\
+            % (PROXY, log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
 
     def run_events(self, events_file=None, bg=False):
         cmd = '%s %s run' % (NETSIM, self.topo_dir)
