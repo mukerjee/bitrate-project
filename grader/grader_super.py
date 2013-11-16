@@ -105,13 +105,15 @@ class Project3Test(unittest.TestCase):
         print tput, tput_avg, bitrate
 
         try: 
-            self.assertTrue(abs(tput - link_bw) < .25*link_bw)
+            self.assertTrue(abs(tput - link_bw) < .3*link_bw)
             self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*.25*link_bw)
             self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*.1*expect_br)
 
             # check the hash of the last chunk we requested
             self.assertTrue(hashlib.sha256(r.content).hexdigest() == HASH_VALUE[expect_br])
         except Exception, e:
+            print 'FAILED: tput=%g, tput_avg=%g, bitrate=%g, expect_br=%g, link_bw=%g'\
+                % (tput, tput_avg, bitrate, expect_br, link_bw)
             self.exc_info = sys.exc_info()
 
     def check_errors(self):
