@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import socket, sys
-from common import genMessage, parseMessage
-USAGE = 'Usage: %s [-r] <ip> <port> <servers> <LSAs> <logfile>' % (sys.argv[0])
+from dns_common import genMessage, parseMessage
+USAGE = 'Usage: %s [-r] <log> <ip> <port> <servers> <LSAs>' % (sys.argv[0])
 
 ROUND_ROBIN = False
 
@@ -15,11 +15,11 @@ if sys.argv[1] == '-r':
     ROUND_ROBIN = True
     i += 1
 
-ip = sys.argv[i]
-port = int(float(sys.argv[i+1]))
-servers_file = sys.argv[i+2]
-lsa_file = sys.argv[i+3]
-log_file = sys.argv[i+4]
+log_file = sys.argv[i]
+ip = sys.argv[i+1]
+port = int(float(sys.argv[i+2]))
+servers_file = sys.argv[i+3]
+lsa_file = sys.argv[i+4]
 
 while True:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

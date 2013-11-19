@@ -18,9 +18,9 @@ SERV_CURR = 0
 TRANS_ID = us(os.urandom(2))
 FLAGS_QR = 0 #Query
 FLAGS_Opcode = 0 #Std query
-FLAGS_AA = 0 #not an authority
+FLAGS_AA = 1 #is an authority
 FLAGS_TC = 0 #not truncated
-FLAGS_RD = 1 #recurse please!
+FLAGS_RD = 0 #not asking for recursion
 FLAGS_RA = 0 #recursion not allowed (or is a request)
 FLAGS_Zero = 0 # always zero
 FLAGS_RCode = 0 # no errors
@@ -45,10 +45,9 @@ def serverSetup(servers_file, log):
     LOG_FILE = open(log, 'w', 0)
 
 def genFlags(query):
-    global FLAGS_QR, FLAGS_RA, NUM_ANSWERS, FLAGS
+    global FLAGS_QR, NUM_ANSWERS, FLAGS
     if not query:
         FLAGS_QR = 1
-        FLAGS_RA = 1
         NUM_ANSWERS = 1
 
     FLAGS_B1 = FLAGS_QR<<7 | FLAGS_Opcode <<3 | FLAGS_AA <<2 | FLAGS_TC <<1 | FLAGS_RD
@@ -100,7 +99,7 @@ def genMessage(query_str, query=1, ROUND_ROBIN=0, servers_file="", lsa_file="", 
         RR_NAME = 49164 #C0 0C
         RR_QTYPE = 1 #A record
         RR_QCLASS = 1 #IN
-        RR_TTL = 201 # C9 --> 3:21
+        RR_TTL = 0 # no caching
         RR_DATALENGTH = 4
         if ROUND_ROBIN:
             RR_ADDR = SERVERS[SERV_CURR]
@@ -185,8 +184,18 @@ def parseMessage(data, query=0):
         RR_ADDR = '.'.join(addr)
         # print RR_NAME, RR_TYPE, RR_CLASS, RR_TTL, RR_DL
 
+    flags = {}
 
-    return (R_INPUT, RR_ADDR)
+    if not query:
+        flags = {'sent_trans_id' : TRANS_ID, 'recv_trans_id' : R_TRANS_ID, 'qr' : R_FLAGS_QR, 
+                 'opcode' : R_FLAGS_Opcode, 'aa' : R_FLAGS_AA, 'tc' : R_FLAGS_TC, 'rd' : R_FLAGS_RD,
+                 'ra' : R_FLAGS_RA, 'z' : R_FLAGS_Zero, 'rcode' : R_FLAGS_RCode, 
+                 'num_questions' : R_NUM_QUESTIONS, 'num_answers' : R_NUM_ANSWERS, 
+                 'num_authority' : R_NUM_AUTHORITY, 'num_additional' : R_NUM_ADDITIONAL, 
+                 'qtype' :R_QType, 'qclass' : R_QClass, 'rr_name' : RR_NAME, 'rr_qtype' : RR_TYPE, 
+                 'rr_qclass' : RR_CLASS, 'rr_ttl' : RR_TTL, 'rr_dl' : RR_DL}
+
+    return (R_INPUT, RR_ADDR, flags)
 
 def sendDNSQuery(query, local_ip, server_ip, server_port):
     message = genMessage(query, 1)[0]
@@ -194,4 +203,4 @@ def sendDNSQuery(query, local_ip, server_ip, server_port):
     dns_sock.bind((local_ip,random.randrange(3000,10000)))
     dns_sock.sendto(message, (server_ip, server_port))
     data, _ = dns_sock.recvfrom(1024)
-    return parseMessage(data, 0)[1]
+    return parseMessage(data, 0)

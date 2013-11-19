@@ -2,16 +2,20 @@
 
 import sys
 sys.path.append('../common')
+sys.path.append('../dns')
 
 import os
 import json
 import unittest
 import requests
 import hashlib
+import time
 from threading import Thread
 from util import check_output, check_both, run_bg
+from dns_common import sendDNSQuery
 
 NETSIM = '../netsim/netsim.py'
+VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
 
 class Project3Test(unittest.TestCase):
 
@@ -34,11 +38,14 @@ class Project3Test(unittest.TestCase):
 
     # Run once per test
     def setUp(self):
+        check_both('killall -9 proxy', False, False)
+        check_both('killall -9 nameserver', False, False)
         self.start_netsim()
 
     # Run once per test
     def tearDown(self):
-        check_output('killall -9 proxy')
+        check_both('killall -9 proxy', False, False)
+        check_both('killall -9 nameserver', False, False)
         self.stop_netsim()
 
 
@@ -47,6 +54,11 @@ class Project3Test(unittest.TestCase):
     def run_proxy(self, log, alpha, listenport, fakeip, dnsip, dnsport, serverip=''):
         run_bg('../proxy/proxy %s %s %s %s %s %s %s'\
             % (log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
+
+    def run_dns(self, rr, log, listenip, listenport, serverfile, lsafile):
+        rr_str = '-r' if rr else ''
+        run_bg('../dns/nameserver %s %s %s %s %s %s'\
+            % (rr_str, log, listenip, listenport, serverfile, lsafile))
 
     def run_events(self, events_file=None, bg=False):
         cmd = '%s %s run' % (NETSIM, self.topo_dir)
@@ -183,6 +195,52 @@ class Project3Test(unittest.TestCase):
         self.assertTrue(log_switch[0] >= log_switch[1])
         self.assertTrue(log_switch[1] >= log_switch[2])
         print 'done test_proxy_alpha'
+
+    def test_dns_simple(self):
+        server_file = os.path.join(self.topo_dir, 'simple-dns.servers')
+        lsa_file = os.path.join(self.topo_dir, 'simple-dns.lsa')
+        self.run_dns(True, 'dns.log', '127.0.0.1', '5353', server_file, lsa_file)
+        time.sleep(1)
+
+        [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '127.0.0.1', '127.0.0.1', 5353)
+        print query, response, flags
+
+        self.assertTrue(query == 'video.cs.cmu.edu')
+        self.assertTrue(response == '2.0.0.1')
+        self.assertTrue(flags['sent_trans_id'] == flags['recv_trans_id'])
+        self.assertTrue(flags['qr'] == 1)
+        self.assertTrue(flags['opcode'] == 0)
+        self.assertTrue(flags['aa'] == 1)
+        self.assertTrue(flags['tc'] == 0)
+        self.assertTrue(flags['rd'] == 0)
+        self.assertTrue(flags['ra'] == 0)
+        self.assertTrue(flags['z'] == 0)
+        self.assertTrue(flags['rcode'] == 0)
+        self.assertTrue(flags['num_questions'] == 1)
+        self.assertTrue(flags['num_answers'] == 1)
+        self.assertTrue(flags['num_authority'] == 0)
+        self.assertTrue(flags['num_additional'] == 0)
+        self.assertTrue(flags['qtype'] == 1)
+        self.assertTrue(flags['qclass'] == 1)
+        self.assertTrue(flags['rr_name'] == 49164) #C0 0C
+        self.assertTrue(flags['rr_qtype'] == 1)
+        self.assertTrue(flags['rr_qclass'] == 1)
+        self.assertTrue(flags['rr_ttl'] == 0)
+        self.assertTrue(flags['rr_dl'] == 4)
+        print 'done test_dns_simple'
+
+    def test_dns_rr(self):
+        server_file = os.path.join(self.topo_dir, 'rr-dns.servers')
+        lsa_file = os.path.join(self.topo_dir, 'rr-dns.lsa')
+        self.run_dns(True, 'dns.log', '127.0.0.1', '5353', server_file, lsa_file)
+        time.sleep(1)
+
+        servers = ['2.0.0.1', '3.0.0.1', '4.0.0.1', '5.0.0.1', '6.0.0.1']
+        for i in xrange(100):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '127.0.0.1', '127.0.0.1', 5353)
+            print response
+            self.assertTrue(response == servers[i%len(servers)])
+        
 
 
 def emit_scores(test_results, test_values, test_categories):
