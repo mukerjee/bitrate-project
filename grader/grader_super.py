@@ -243,6 +243,20 @@ class Project3Test(unittest.TestCase):
             [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '127.0.0.1', '127.0.0.1', 5353)
             print response
             self.assertTrue(response == servers[i%len(servers)])
+
+
+    def test_dns_integration(self):
+
+        # TODO: start dns server
+        self.run_dns('-r', 'dns.log', # TODO... )
+
+        # TODO: start proxy
+        self.run_proxy('proxy.log', # TODO ... )
+
+        # TODO: do one GET (to make sure we force the proxy to do a lookup)
+
+        # TODO: check the DNS log: make sure client IP is correct and that it returned the correct server IP
+        # TODO: check one entry in the proxy log: make sure it really is using the server IP returned by DNS
         
 
 
