@@ -16,6 +16,7 @@ from dns_common import sendDNSQuery
 
 NETSIM = '../netsim/netsim.py'
 VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
+PROXY = '../proxy/proxy'
 
 class Project3Test(unittest.TestCase):
 
@@ -52,8 +53,8 @@ class Project3Test(unittest.TestCase):
     ########## HELPER FUNCTIONS ##########
 
     def run_proxy(self, log, alpha, listenport, fakeip, dnsip, dnsport, serverip=''):
-        run_bg('../proxy/proxy %s %s %s %s %s %s %s'\
-            % (log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
+        run_bg('%s %s %s %s %s %s %s %s'\
+            % (PROXY, log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
 
     def run_dns(self, rr, log, listenip, listenport, serverfile, lsafile):
         rr_str = '-r' if rr else ''
@@ -116,13 +117,15 @@ class Project3Test(unittest.TestCase):
         print tput, tput_avg, bitrate
 
         try: 
-            self.assertTrue(abs(tput - link_bw) < .25*link_bw)
+            self.assertTrue(abs(tput - link_bw) < .3*link_bw)
             self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*.25*link_bw)
             self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*.1*expect_br)
 
             # check the hash of the last chunk we requested
             self.assertTrue(hashlib.sha256(r.content).hexdigest() == HASH_VALUE[expect_br])
         except Exception, e:
+            print 'FAILED: tput=%g, tput_avg=%g, bitrate=%g, expect_br=%g, link_bw=%g'\
+                % (tput, tput_avg, bitrate, expect_br, link_bw)
             self.exc_info = sys.exc_info()
 
     def check_errors(self):
