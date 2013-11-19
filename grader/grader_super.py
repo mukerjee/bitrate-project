@@ -57,9 +57,8 @@ class Project3Test(unittest.TestCase):
             % (PROXY, log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
 
     def run_dns(self, rr, log, listenip, listenport, serverfile, lsafile):
-        rr_str = '-r' if rr else ''
         run_bg('../dns/nameserver %s %s %s %s %s %s'\
-            % (rr_str, log, listenip, listenport, serverfile, lsafile))
+            % (rr, log, listenip, listenport, serverfile, lsafile))
 
     def run_events(self, events_file=None, bg=False):
         cmd = '%s %s run' % (NETSIM, self.topo_dir)
@@ -202,7 +201,7 @@ class Project3Test(unittest.TestCase):
     def test_dns_simple(self):
         server_file = os.path.join(self.topo_dir, 'simple-dns.servers')
         lsa_file = os.path.join(self.topo_dir, 'simple-dns.lsa')
-        self.run_dns(True, 'dns.log', '127.0.0.1', '5353', server_file, lsa_file)
+        self.run_dns('-r', 'dns.log', '127.0.0.1', '5353', server_file, lsa_file)
         time.sleep(1)
 
         [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '127.0.0.1', '127.0.0.1', 5353)
@@ -235,7 +234,7 @@ class Project3Test(unittest.TestCase):
     def test_dns_rr(self):
         server_file = os.path.join(self.topo_dir, 'rr-dns.servers')
         lsa_file = os.path.join(self.topo_dir, 'rr-dns.lsa')
-        self.run_dns(True, 'dns.log', '127.0.0.1', '5353', server_file, lsa_file)
+        self.run_dns('-r', 'dns.log', '127.0.0.1', '5353', server_file, lsa_file)
         time.sleep(1)
 
         servers = ['2.0.0.1', '3.0.0.1', '4.0.0.1', '5.0.0.1', '6.0.0.1']
@@ -244,6 +243,68 @@ class Project3Test(unittest.TestCase):
             print response
             self.assertTrue(response == servers[i%len(servers)])
 
+    def test_dns_lsa_topo1(self):
+        server_file = os.path.join(self.topo_dir, 'topo1.servers')
+        lsa_file = os.path.join(self.topo_dir, 'topo1.lsa')
+        self.run_dns('', 'dns.log', '5.0.0.1', '5353', server_file, lsa_file)
+        time.sleep(1)
+
+        servers = ['3.0.0.1', '4.0.0.1']
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '1.0.0.1', '5.0.0.1', 5353)
+            print response
+            self.assertTrue(response in servers)
+
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '2.0.0.1', '5.0.0.1', 5353)
+            print response
+            self.assertTrue(response in servers)
+
+    def test_dns_lsa_topo2(self):
+        server_file = os.path.join(self.topo_dir, 'topo2.servers')
+        lsa_file = os.path.join(self.topo_dir, 'topo2.lsa')
+        self.run_dns('', 'dns.log', '5.0.0.1', '5353', server_file, lsa_file)
+        time.sleep(1)
+
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '1.0.0.1', '5.0.0.1', 5353)
+            print response
+            self.assertTrue(response == '4.0.0.1')
+
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '2.0.0.1', '5.0.0.1', 5353)
+            print response
+            self.assertTrue(response == '5.0.0.1')
+
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '3.0.0.1', '5.0.0.1', 5353)
+            print response
+            self.assertTrue(response == '6.0.0.1')
+
+    def test_dns_lsa_topo3(self):
+        servers = ['3.1.4.159', '2.7.1.82']
+        dns = '29.97.92.45'
+
+        server_file = os.path.join(self.topo_dir, 'topo3.servers')
+        lsa_file = os.path.join(self.topo_dir, 'topo3.lsa')
+        self.run_dns('', 'dns.log', dns, '5353', server_file, lsa_file)
+        time.sleep(1)
+
+
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '4.2.8.9', dns, 5353)
+            print response
+            self.assertTrue(response == servers[0])
+
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '9.26.8.8', dns, 5353)
+            print response
+            self.assertTrue(response in servers)
+
+        for i in xrange(5):
+            [query, response, flags] = sendDNSQuery(VIDEO_SERVER_NAME, '3.4.0.29', dns, 5353)
+            print response
+            self.assertTrue(response == servers[1])
 
     def test_dns_integration(self):
 
