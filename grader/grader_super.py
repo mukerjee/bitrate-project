@@ -17,6 +17,7 @@ from dns_common import sendDNSQuery
 NETSIM = '../netsim/netsim.py'
 VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
 PROXY = '../proxy/proxy'
+WRITEUP = '../../handin/writeup.pdf'
 
 class Project3Test(unittest.TestCase):
 
@@ -327,7 +328,7 @@ class Project3Test(unittest.TestCase):
             self.assertTrue(entry[5] in servers)
 
     def test_writeup_exists(self):
-        self.assertTrue(os.path.isfile('../writeup.pdf'))
+        self.assertTrue(os.path.isfile(WRITEUP))
 
 def emit_scores(test_results, test_values, test_categories):
 
