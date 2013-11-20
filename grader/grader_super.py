@@ -17,6 +17,7 @@ from dns_common import sendDNSQuery
 NETSIM = '../netsim/netsim.py'
 VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
 PROXY = '../proxy/proxy'
+WRITEUP = '../../handin/writeup.pdf'
 
 class Project3Test(unittest.TestCase):
 
@@ -282,7 +283,7 @@ class Project3Test(unittest.TestCase):
             self.assertTrue(response == '6.0.0.1')
 
     def test_dns_lsa_topo3(self):
-        servers = ['3.1.4.159', '2.7.1.82']
+        servers = ['3.1.4.15', '2.7.1.82']
         dns = '29.97.92.45'
 
         server_file = os.path.join(self.topo_dir, 'topo3.servers')
@@ -307,19 +308,27 @@ class Project3Test(unittest.TestCase):
             self.assertTrue(response == servers[1])
 
     def test_dns_integration(self):
+        dns = '29.97.92.45'
+        client = '4.2.8.9'
+        servers = ['3.1.4.15', '2.7.1.82']
+        server_file = os.path.join(self.topo_dir, 'topo3.servers')
+        lsa_file = os.path.join(self.topo_dir, 'topo3.lsa')
+        self.run_dns('-r', 'dns.log', dns, '5353', server_file, lsa_file)
+        self.run_proxy('proxy.log', '1', '8081', client, dns, '5353')
+        time.sleep(1)
 
-        # TODO: start dns server
-        self.run_dns('-r', 'dns.log', # TODO... )
+        r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(client, '8081'))
 
-        # TODO: start proxy
-        self.run_proxy('proxy.log', # TODO ... )
+        for entry in self.iter_log('dns.log'):
+            self.assertTrue(entry[1] == client)
+            self.assertTrue(entry[2] == VIDEO_SERVER_NAME)
+            self.assertTrue(entry[3] in servers)
 
-        # TODO: do one GET (to make sure we force the proxy to do a lookup)
+        for entry in self.iter_log('proxy.log'):
+            self.assertTrue(entry[5] in servers)
 
-        # TODO: check the DNS log: make sure client IP is correct and that it returned the correct server IP
-        # TODO: check one entry in the proxy log: make sure it really is using the server IP returned by DNS
-        
-
+    def test_writeup_exists(self):
+        self.assertTrue(os.path.isfile(WRITEUP))
 
 def emit_scores(test_results, test_values, test_categories):
 

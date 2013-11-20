@@ -200,7 +200,7 @@ def parseMessage(data, query=0):
 def sendDNSQuery(query, local_ip, server_ip, server_port):
     message = genMessage(query, 1)[0]
     dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    dns_sock.bind((local_ip,random.randrange(3000,10000)))
+    dns_sock.bind((local_ip,0))
     dns_sock.sendto(message, (server_ip, server_port))
     data, _ = dns_sock.recvfrom(1024)
     return parseMessage(data, 0)

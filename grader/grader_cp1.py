@@ -42,13 +42,6 @@ class Project3Checkpoint1Test(Project3Test):
     def tearDown(self):
         super(Project3Checkpoint1Test, self).tearDown()
     
-    
-    ########### TEST CASES ##########
-
-    def test_writeup_exists(self):
-        self.assertTrue(os.path.isfile('writeup.pdf'))
-
-
 if __name__ == '__main__':
     suite = unittest.TestSuite()
     suite.addTest(Project3Checkpoint1Test('test_proxy_simple', './topos/one-client'))
