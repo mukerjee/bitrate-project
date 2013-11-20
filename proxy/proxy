@@ -32,7 +32,7 @@ Copyright (c) <2009> <Fábio Domingues - fnds3000 in gmail.com> <MIT Licence>
 import sys
 sys.path.append('../dns')
 import socket, thread, select, time, random, re
-from common import sendDNSQuery
+from dns_common import sendDNSQuery
 
 
 __version__ = '0.1.0 Draft 1'
@@ -44,7 +44,7 @@ AVG = 0
 ALPHA = .5
 
 USAGE = '%s <log> <listen-port> <fake-ip> <dns-ip> <dns-port> <alpha> [<www-ip>]' % (sys.argv[0])
-NAME = 'server.15-441.cs.cmu.edu'
+NAME = 'video.cs.cmu.edu'
 PORT = 8080
 
 INNER_IP = '0.0.0.0'
@@ -120,7 +120,7 @@ class ConnectionHandler:
         # except:
         #     pass
         if not RR_ADDR:
-            RR_ADDR = sendDNSQuery(NAME, INNER_IP, DNS_IP, DNS_PORT)
+            RR_ADDR = sendDNSQuery(NAME, INNER_IP, DNS_IP, DNS_PORT)[1]
         (soc_family, _, _, _, address) = socket.getaddrinfo(RR_ADDR, PORT)[0]
         self.target = socket.socket(soc_family)
         self.target.bind((INNER_IP,0))#random.randrange(3000,10000)))
