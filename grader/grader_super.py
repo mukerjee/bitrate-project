@@ -340,9 +340,11 @@ def emit_scores(test_results, test_values, test_categories):
         category_scores[test_categories[test]] = 0  # init category scores to 0
 
     # Deduct points for failed tests
-    for testcase in test_results.failures:
+    failed = test_results.failures + test_results.errors
+    for testcase in failed:
         test = testcase[0].id().split('.')[-1]
         test_scores[test] = 0
+
 
     # Sum category scores
     for test, score in test_scores.iteritems():
