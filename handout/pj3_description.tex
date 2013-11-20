@@ -260,7 +260,7 @@ available encodings as described above.
 We require that your proxy create a log of its activity in a very particular
 format. After each request, it should append the following line to the log:
 \begin{center}
-	\texttt{$<$time$>$ $<$duration$>$ $<$tput$>$ $<$avg-tput$>$ $<$bitrate$>$ $<$client-ip$>$ $<$chunkname$>$}
+	\texttt{$<$time$>$ $<$duration$>$ $<$tput$>$ $<$avg-tput$>$ $<$bitrate$>$ $<$server-ip$>$ $<$chunkname$>$}
 \end{center}
 
 \begin{description}
@@ -272,8 +272,8 @@ format. After each request, it should append the following line to the log:
 	\item[\texttt{avg-tput}] Your current EWMA throughput estimate in Kbps.
 	\item[\texttt{bitrate}] The bitrate your proxy requested for this chunk in
 	Kbps.
-	\item[\texttt{client-ip}] The client IP address from which the proxy
-	received this request.
+	\item[\texttt{server-ip}] The IP address of the server to which the proxy
+	forwarded this request.
 	\item[\texttt{chunkname}] The name of the file your proxy requested from
 	the server (that is, the modified file name in the modified HTTP GET
 	message).
