@@ -97,6 +97,11 @@ class Project3Test(unittest.TestCase):
         else:
             HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
         
+        if large:
+            r = requests.get('http://%s:%s/vod/large/big_buck_bunny.f4m' % (ip, port))
+        else:
+            r = requests.get('http://%s:%s/vod/big_buck_bunny.f4m' % (ip, port))
+
         # send a few gets (until we think their estimate should have stabilized)
         try:
             for i in xrange(num_gets):
