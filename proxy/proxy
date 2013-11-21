@@ -43,7 +43,7 @@ BR = []
 AVG = 0
 ALPHA = .5
 
-USAGE = '%s <log> <listen-port> <fake-ip> <dns-ip> <dns-port> <alpha> [<www-ip>]' % (sys.argv[0])
+USAGE = '%s <log> <alpha> <listen-port> <fake-ip> <dns-ip> <dns-port> [<www-ip>]' % (sys.argv[0])
 NAME = 'video.cs.cmu.edu'
 PORT = 8080
 
