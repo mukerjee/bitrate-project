@@ -18,6 +18,7 @@ NETSIM = '../netsim/netsim.py'
 VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
 PROXY = '../../handin/proxy'
 WRITEUP = '../../handin/writeup.pdf'
+LARGE_FOLDER = '/var/www/vod/large'
 
 class Project3Test(unittest.TestCase):
 
@@ -90,31 +91,40 @@ class Project3Test(unittest.TestCase):
 
 
 
-    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0, tput_margin=0.3, bitrate_margin=0.1):
-        HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
-
+    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0, tput_margin=0.3, bitrate_margin=0.1, large=False):
+        if large:
+            HASH_VALUE = {500: 'b1931364d7933ae90da7c6de423faf51b81503f4dfeb04da4be53dfb980c671e'}
+        else:
+            HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
+        
         # send a few gets (until we think their estimate should have stabilized)
-        for i in xrange(num_gets):
-            r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
-
-        # check what bitrate they're requesting
-        tputs = []
-        tput_avgs = []
-        bitrates = []
-        i = 0
-        for entry in self.iter_log(log_file):
-            i += 1
-            if i <= ignore: continue
-            tputs.append(float(entry[2]))
-            tput_avgs.append(float(entry[3]))
-            bitrates.append(int(float(entry[4])))
-        tputs = tputs[1:-1]
-        tput_avgs = tput_avgs[1:-1]
-        bitrates = bitrates[1:-1]
-        tput = float(sum(tputs))/len(tputs)
-        tput_avg = float(sum(tput_avgs))/len(tput_avgs)
-        bitrate = float(sum(bitrates))/len(bitrates)
-        print tput, tput_avg, bitrate
+        try:
+            for i in xrange(num_gets):
+                if large:
+                    r = requests.get('http://%s:%s/vod/large/1000Seg2-Frag3' %(ip, port))
+                else:
+                    r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
+            # check what bitrate they're requesting
+            tputs = []
+            tput_avgs = []
+            bitrates = []
+            i = 0
+            for entry in self.iter_log(log_file):
+                i += 1
+                if i <= ignore: continue
+                tputs.append(float(entry[2]))
+                tput_avgs.append(float(entry[3]))
+                bitrates.append(int(float(entry[4])))
+            tputs = tputs[1:-1]
+            tput_avgs = tput_avgs[1:-1]
+            bitrates = bitrates[1:-1]
+            tput = float(sum(tputs))/len(tputs)
+            tput_avg = float(sum(tput_avgs))/len(tput_avgs)
+            bitrate = float(sum(bitrates))/len(bitrates)
+            print tput, tput_avg, bitrate
+        except Exception, e:
+            self.exc_info = sys.exc_info()
+            return
 
         try: 
             self.assertTrue(abs(tput - link_bw) < tput_margin*link_bw)
@@ -177,9 +187,10 @@ class Project3Test(unittest.TestCase):
         self.run_proxy('proxy1.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '3.0.0.1')
         self.run_proxy('proxy2.log', '1', '8082', '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
+        large = True if os.path.isdir(LARGE_FOLDER) else False
         ts = []
-        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, 'proxy1.log', 950, 500, 0, 1.0, 0.5, 5)))
-        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, 'proxy2.log', 950, 500, 0, 1.0, 0.5, 5)))
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, 'proxy1.log', 950, 500, 0, 1.0, 0.5, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, 'proxy2.log', 950, 500, 0, 1.0, 0.5, 5, large)))
         for t in ts:
             t.start()
         for t in ts:
