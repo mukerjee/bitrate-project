@@ -90,7 +90,7 @@ class Project3Test(unittest.TestCase):
 
 
 
-    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0):
+    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0, tput_margin=0.3, bitrate_margin=0.1):
         HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
 
         # send a few gets (until we think their estimate should have stabilized)
@@ -117,9 +117,9 @@ class Project3Test(unittest.TestCase):
         print tput, tput_avg, bitrate
 
         try: 
-            self.assertTrue(abs(tput - link_bw) < .5*link_bw)
-            self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*.5*link_bw)
-            self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*.1*expect_br)
+            self.assertTrue(abs(tput - link_bw) < tput_margin*link_bw)
+            self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*tput_margin*link_bw)
+            self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*bitrate_margin*expect_br)
 
             # check the hash of the last chunk we requested
             self.assertTrue(hashlib.sha256(r.content).hexdigest() == HASH_VALUE[expect_br])
@@ -178,8 +178,8 @@ class Project3Test(unittest.TestCase):
         self.run_proxy('proxy2.log', '1', '8082', '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
         ts = []
-        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, 'proxy1.log', 950, 500)))
-        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, 'proxy2.log', 950, 500)))
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, 'proxy1.log', 950, 500, 0, 1.0, 0.5, 5)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, 'proxy2.log', 950, 500, 0, 1.0, 0.5, 5)))
         for t in ts:
             t.start()
         for t in ts:
