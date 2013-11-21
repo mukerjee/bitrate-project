@@ -16,7 +16,7 @@ from dns_common import sendDNSQuery
 
 NETSIM = '../netsim/netsim.py'
 VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
-PROXY = '../proxy/proxy'
+PROXY = '../../handin/proxy'
 WRITEUP = '../../handin/writeup.pdf'
 LARGE_FOLDER = '/var/www/vod/large'
 
@@ -358,5 +358,5 @@ def emit_scores(test_results, test_values, test_categories):
         category_scores[test_categories[test]] += score
 
     print test_scores  # for student's log
-    print category_scores  # for student's log
-    print json.dumps(category_scores)  # for autolab
+    autolab_wrapper = { 'scores':category_scores }
+    print json.dumps(autolab_wrapper)  # for autolab
