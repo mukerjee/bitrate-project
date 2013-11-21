@@ -18,6 +18,7 @@ NETSIM = '../netsim/netsim.py'
 VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
 PROXY = '../proxy/proxy'
 WRITEUP = '../../handin/writeup.pdf'
+LARGE_FOLDER = '/var/www/vod/large'
 
 class Project3Test(unittest.TestCase):
 
@@ -90,13 +91,18 @@ class Project3Test(unittest.TestCase):
 
 
 
-    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0):
-        HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
-
+    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0, large=False):
+        if large:
+            HASH_VALUE = {500: 'b1931364d7933ae90da7c6de423faf51b81503f4dfeb04da4be53dfb980c671e'}
+        else:
+            HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
+        
         # send a few gets (until we think their estimate should have stabilized)
         for i in xrange(num_gets):
-            r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
-
+            if large:
+                r = requests.get('http://%s:%s/vod/large/1000Seg2-Frag3' %(ip, port))
+            else:
+                r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
         # check what bitrate they're requesting
         tputs = []
         tput_avgs = []
@@ -117,7 +123,7 @@ class Project3Test(unittest.TestCase):
         print tput, tput_avg, bitrate
 
         try: 
-            self.assertTrue(abs(tput - link_bw) < .3*link_bw)
+            self.assertTrue(abs(tput - link_bw) < .25*link_bw)
             self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*.25*link_bw)
             self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*.1*expect_br)
 
@@ -177,9 +183,10 @@ class Project3Test(unittest.TestCase):
         self.run_proxy('proxy1.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '3.0.0.1')
         self.run_proxy('proxy2.log', '1', '8082', '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
+        large = True if os.path.isdir(LARGE_FOLDER) else False
         ts = []
-        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, 'proxy1.log', 950, 500)))
-        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, 'proxy2.log', 950, 500)))
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 5, 'proxy1.log', 950, 500, 0, 1.0, large)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 5, 'proxy2.log', 950, 500, 0, 1.0, large)))
         for t in ts:
             t.start()
         for t in ts:
