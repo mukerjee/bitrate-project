@@ -98,29 +98,33 @@ class Project3Test(unittest.TestCase):
             HASH_VALUE = {500: 'af29467f6793789954242d0430ce25e2fd2fc3a1aac5495ba7409ab853b1cdfa', 1000: 'f1ee215199d6c495388e2ac8470c83304e0fc642cb76fffd226bcd94089c7109'}
         
         # send a few gets (until we think their estimate should have stabilized)
-        for i in xrange(num_gets):
-            if large:
-                r = requests.get('http://%s:%s/vod/large/1000Seg2-Frag3' %(ip, port))
-            else:
-                r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
-        # check what bitrate they're requesting
-        tputs = []
-        tput_avgs = []
-        bitrates = []
-        i = 0
-        for entry in self.iter_log(log_file):
-            i += 1
-            if i <= ignore: continue
-            tputs.append(float(entry[2]))
-            tput_avgs.append(float(entry[3]))
-            bitrates.append(int(float(entry[4])))
-        tputs = tputs[1:-1]
-        tput_avgs = tput_avgs[1:-1]
-        bitrates = bitrates[1:-1]
-        tput = float(sum(tputs))/len(tputs)
-        tput_avg = float(sum(tput_avgs))/len(tput_avgs)
-        bitrate = float(sum(bitrates))/len(bitrates)
-        print tput, tput_avg, bitrate
+        try:
+            for i in xrange(num_gets):
+                if large:
+                    r = requests.get('http://%s:%s/vod/large/1000Seg2-Frag3' %(ip, port))
+                else:
+                    r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
+            # check what bitrate they're requesting
+            tputs = []
+            tput_avgs = []
+            bitrates = []
+            i = 0
+            for entry in self.iter_log(log_file):
+                i += 1
+                if i <= ignore: continue
+                tputs.append(float(entry[2]))
+                tput_avgs.append(float(entry[3]))
+                bitrates.append(int(float(entry[4])))
+            tputs = tputs[1:-1]
+            tput_avgs = tput_avgs[1:-1]
+            bitrates = bitrates[1:-1]
+            tput = float(sum(tputs))/len(tputs)
+            tput_avg = float(sum(tput_avgs))/len(tput_avgs)
+            bitrate = float(sum(bitrates))/len(bitrates)
+            print tput, tput_avg, bitrate
+        except Exception, e:
+            self.exc_info = sys.exc_info()
+            return
 
         try: 
             self.assertTrue(abs(tput - link_bw) < .25*link_bw)
