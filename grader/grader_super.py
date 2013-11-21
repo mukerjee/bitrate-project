@@ -126,6 +126,9 @@ class Project3Test(unittest.TestCase):
             self.exc_info = sys.exc_info()
             return
 
+        print 'STATS: tput=%g, tput_avg=%g, bitrate=%g, expect_br=%g, link_bw=%g'\
+            % (tput, tput_avg, bitrate, expect_br, link_bw)
+
         try: 
             self.assertTrue(abs(tput - link_bw) < tput_margin*link_bw)
             self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*tput_margin*link_bw)
@@ -134,8 +137,6 @@ class Project3Test(unittest.TestCase):
             # check the hash of the last chunk we requested
             self.assertTrue(hashlib.sha256(r.content).hexdigest() == HASH_VALUE[expect_br])
         except Exception, e:
-            print 'FAILED: tput=%g, tput_avg=%g, bitrate=%g, expect_br=%g, link_bw=%g'\
-                % (tput, tput_avg, bitrate, expect_br, link_bw)
             self.exc_info = sys.exc_info()
 
     def check_errors(self):
@@ -163,38 +164,51 @@ class Project3Test(unittest.TestCase):
         self.check_errors()
         return self.get_log_switch_len('proxy.log', num_trials, 1000, 500)
 
+    def print_log(self, log):
+        print '\n\n#################### %s ####################' % log
+        check_output('cat %s' % log)
+        print '\n'
+
 
 
     ########### TEST CASES ##########
 
     def test_proxy_simple(self):
-        self.run_proxy('proxy.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
+        PROXY_LOG = 'proxy.log'
+        self.run_proxy(PROXY_LOG, '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'simple.events'))
         self.check_gets('1.0.0.1', '8081', 5, 'proxy.log', 900, 500)
+        self.print_log(PROXY_LOG)
         self.check_errors()
         print 'done test_proxy_simple'
     
     def test_proxy_adaptation(self):
-        self.run_proxy('proxy.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
+        PROXY_LOG = 'proxy.log'
+        self.run_proxy(PROXY_LOG, '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'adaptation-2000.events')) 
-        self.check_gets('1.0.0.1', '8081', 5, 'proxy.log', 2000, 1000)
+        self.check_gets('1.0.0.1', '8081', 5, PROXY_LOG, 2000, 1000)
         self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
-        self.check_gets('1.0.0.1', '8081', 5, 'proxy.log', 900, 500, 5)
+        self.check_gets('1.0.0.1', '8081', 5, PROXY_LOG, 900, 500, 5)
+        self.print_log(PROXY_LOG)
         self.check_errors()
         print 'done test_proxy_adaptation'
     
     def test_proxy_multiple_clients(self):
-        self.run_proxy('proxy1.log', '1', '8081', '1.0.0.1', '0.0.0.0', '0', '3.0.0.1')
-        self.run_proxy('proxy2.log', '1', '8082', '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
+        PROXY1_LOG = 'proxy1.log'
+        PROXY2_LOG = 'proxy2.log'
+        self.run_proxy(PROXY1_LOG, '1', '8081', '1.0.0.1', '0.0.0.0', '0', '3.0.0.1')
+        self.run_proxy(PROXY2_LOG, '1', '8082', '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
         large = True if os.path.isdir(LARGE_FOLDER) else False
         ts = []
-        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, 'proxy1.log', 950, 500, 0, 1.0, 0.5, 5, large)))
-        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, 'proxy2.log', 950, 500, 0, 1.0, 0.5, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, PROXY1_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, PROXY2_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
         for t in ts:
             t.start()
         for t in ts:
             t.join()
+        self.print_log(PROXY1_LOG)
+        self.print_log(PROXY2_LOG)
         self.check_errors()
         print 'done test_proxy_multiple_clients'
     
