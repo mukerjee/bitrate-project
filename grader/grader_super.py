@@ -115,9 +115,9 @@ class Project3Test(unittest.TestCase):
                 tputs.append(float(entry[2]))
                 tput_avgs.append(float(entry[3]))
                 bitrates.append(int(float(entry[4])))
-            tputs = tputs[1:-1]
-            tput_avgs = tput_avgs[1:-1]
-            bitrates = bitrates[1:-1]
+            tputs = tputs[2:]
+            tput_avgs = tput_avgs[2:]
+            bitrates = bitrates[2:]
             tput = float(sum(tputs))/len(tputs)
             tput_avg = float(sum(tput_avgs))/len(tput_avgs)
             bitrate = float(sum(bitrates))/len(bitrates)

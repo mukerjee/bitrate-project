@@ -71,10 +71,10 @@ class ConnectionHandler:
         self.method_others()
         if 'Seg' in self.path:
             t_new = int(8*float(self.cl)/float(self.req_time)/1000)
+            b = getBR()
             AVG = (1-ALPHA)*AVG + ALPHA*t_new
 
             t = int(time.time())
-            b = getBR()
             s = ' '.join([str(t),str(self.req_time),str(t_new),str(round(AVG)),str(b),RR_ADDR,self.path])
             print s
             LOG_FILE.write(s+'\n')
