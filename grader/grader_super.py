@@ -16,7 +16,7 @@ from dns_common import sendDNSQuery
 
 NETSIM = '../netsim/netsim.py'
 VIDEO_SERVER_NAME = 'video.cs.cmu.edu'
-PROXY = '../proxy/proxy'
+PROXY = '../../handin/proxy'
 WRITEUP = '../../handin/writeup.pdf'
 
 class Project3Test(unittest.TestCase):
@@ -117,8 +117,8 @@ class Project3Test(unittest.TestCase):
         print tput, tput_avg, bitrate
 
         try: 
-            self.assertTrue(abs(tput - link_bw) < .3*link_bw)
-            self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*.25*link_bw)
+            self.assertTrue(abs(tput - link_bw) < .5*link_bw)
+            self.assertTrue(abs(tput_avg - link_bw) < (1.0/float(alpha))*.5*link_bw)
             self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*.1*expect_br)
 
             # check the hash of the last chunk we requested
@@ -351,5 +351,5 @@ def emit_scores(test_results, test_values, test_categories):
         category_scores[test_categories[test]] += score
 
     print test_scores  # for student's log
-    print category_scores  # for student's log
-    print json.dumps(category_scores)  # for autolab
+    autolab_wrapper = { 'scores':category_scores }
+    print json.dumps(autolab_wrapper)  # for autolab
