@@ -1,7 +1,5 @@
 all:
 	tar -xf autograde.tar
-	cd bitrate-project; rm -r proxy  # remove our proxy
 	tar -xf handin.tar
-	ln -s handin bitrate-project/proxy
 	cd handin; make
-	cd bitrate-project/grader; ./grader_cp1.py
+	cd bitrate-project/grader; export PYTHONUNBUFFERED=YES; ./grader_cp1.py
