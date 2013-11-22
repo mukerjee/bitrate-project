@@ -89,7 +89,7 @@ class Project3Test(unittest.TestCase):
             for line in logf:
                 line = line.strip()
                 if line:
-                    yield line.split(' ')
+                    yield line.split()
         logf.closed
 
 
