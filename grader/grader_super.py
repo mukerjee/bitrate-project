@@ -10,6 +10,7 @@ import unittest
 import requests
 import hashlib
 import time
+import random
 from threading import Thread
 from util import check_output, check_both, run_bg
 from dns_common import sendDNSQuery
@@ -44,6 +45,8 @@ class Project3Test(unittest.TestCase):
         check_both('killall -9 proxy', False, False)
         check_both('killall -9 nameserver', False, False)
         self.start_netsim()
+        self.proxyport1 = random.randrange(1025, 6000)
+        self.proxyport2 = random.randrange(1025, 6000)
 
     # Run once per test
     def tearDown(self):
@@ -120,9 +123,9 @@ class Project3Test(unittest.TestCase):
                 tputs.append(float(entry[2]))
                 tput_avgs.append(float(entry[3]))
                 bitrates.append(int(float(entry[4])))
-            tputs = tputs[2:]
-            tput_avgs = tput_avgs[2:]
-            bitrates = bitrates[2:]
+            tputs = tputs[3:]
+            tput_avgs = tput_avgs[3:]
+            bitrates = bitrates[3:]
             tput = float(sum(tputs))/len(tputs)
             tput_avg = float(sum(tput_avgs))/len(tput_avgs)
             bitrate = float(sum(bitrates))/len(bitrates)
@@ -161,11 +164,11 @@ class Project3Test(unittest.TestCase):
         return switch
 
     def run_alpha_test(self, alpha, num_trials):
-        self.run_proxy('proxy.log', alpha, '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
+        self.run_proxy('proxy.log', alpha, self.proxyport1, '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'adaptation-2000.events')) 
-        self.check_gets('1.0.0.1', '8081', num_trials, 'proxy.log', 2000, 1000, 0, alpha)
+        self.check_gets('1.0.0.1', self.proxyport1, num_trials, 'proxy.log', 2000, 1000, 0, alpha)
         self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
-        self.check_gets('1.0.0.1', '8081', num_trials/2, 'proxy.log', 900, 500, num_trials, alpha)
+        self.check_gets('1.0.0.1', self.proxyport1, num_trials/2, 'proxy.log', 900, 500, num_trials, alpha)
         self.check_errors()
         return self.get_log_switch_len('proxy.log', num_trials, 1000, 500)
 
@@ -180,20 +183,20 @@ class Project3Test(unittest.TestCase):
 
     def test_proxy_simple(self):
         PROXY_LOG = 'proxy.log'
-        self.run_proxy(PROXY_LOG, '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
+        self.run_proxy(PROXY_LOG, '1', self.proxyport1, '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'simple.events'))
-        self.check_gets('1.0.0.1', '8081', 5, 'proxy.log', 900, 500)
+        self.check_gets('1.0.0.1', self.proxyport1, 5, 'proxy.log', 900, 500)
         self.print_log(PROXY_LOG)
         self.check_errors()
         print 'done test_proxy_simple'
     
     def test_proxy_adaptation(self):
         PROXY_LOG = 'proxy.log'
-        self.run_proxy(PROXY_LOG, '1', '8081', '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
+        self.run_proxy(PROXY_LOG, '1', self.proxyport1, '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'adaptation-2000.events')) 
-        self.check_gets('1.0.0.1', '8081', 5, PROXY_LOG, 2000, 1000)
+        self.check_gets('1.0.0.1', self.proxyport1, 5, PROXY_LOG, 2000, 1000)
         self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
-        self.check_gets('1.0.0.1', '8081', 5, PROXY_LOG, 900, 500, 5)
+        self.check_gets('1.0.0.1', self.proxyport1, 5, PROXY_LOG, 900, 500, 5)
         self.print_log(PROXY_LOG)
         self.check_errors()
         print 'done test_proxy_adaptation'
@@ -201,13 +204,13 @@ class Project3Test(unittest.TestCase):
     def test_proxy_multiple_clients(self):
         PROXY1_LOG = 'proxy1.log'
         PROXY2_LOG = 'proxy2.log'
-        self.run_proxy(PROXY1_LOG, '1', '8081', '1.0.0.1', '0.0.0.0', '0', '3.0.0.1')
-        self.run_proxy(PROXY2_LOG, '1', '8082', '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
+        self.run_proxy(PROXY1_LOG, '1', self.proxyport1, '1.0.0.1', '0.0.0.0', '0', '3.0.0.1')
+        self.run_proxy(PROXY2_LOG, '1', self.proxyport2, '2.0.0.1', '0.0.0.0', '0', '3.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
         large = True if os.path.isdir(LARGE_FOLDER) else False
         ts = []
-        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', '8081', 10, PROXY1_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
-        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', '8082', 10, PROXY2_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', self.proxyport1, 10, PROXY1_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', self.proxyport2, 10, PROXY2_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
         for t in ts:
             t.start()
         for t in ts:
@@ -221,8 +224,10 @@ class Project3Test(unittest.TestCase):
         log_switch = []
         log_switch.append(self.run_alpha_test('0.1', 20))
         check_output('killall -9 proxy')
+        self.proxyport1 = random.randrange(1025, 6000)
         log_switch.append(self.run_alpha_test('0.5', 10))
         check_output('killall -9 proxy')
+        self.proxyport1 = random.randrange(1025, 6000)
         log_switch.append(self.run_alpha_test('0.9', 10))
         print log_switch
         self.assertTrue(log_switch[0] >= log_switch[1])
@@ -344,10 +349,10 @@ class Project3Test(unittest.TestCase):
         server_file = os.path.join(self.topo_dir, 'topo3.servers')
         lsa_file = os.path.join(self.topo_dir, 'topo3.lsa')
         self.run_dns('-r', 'dns.log', dns, '5353', server_file, lsa_file)
-        self.run_proxy('proxy.log', '1', '8081', client, dns, '5353')
+        self.run_proxy('proxy.log', '1', self.proxyport1, client, dns, '5353')
         time.sleep(1)
 
-        r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(client, '8081'))
+        r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(client, self.proxyport1))
 
         for entry in self.iter_log('dns.log'):
             self.assertTrue(entry[1] == client)
