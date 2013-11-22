@@ -113,6 +113,8 @@ class Project3Test(unittest.TestCase):
                     r = requests.get('http://%s:%s/vod/large/1000Seg2-Frag3' %(ip, port))
                 else:
                     r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
+                    chunkhash2 = hashlib.sha256(r.content).hexdigest()
+                    print 'Hash of last chunk: %s' % chunkhash2
             # check what bitrate they're requesting
             tputs = []
             tput_avgs = []
@@ -144,7 +146,9 @@ class Project3Test(unittest.TestCase):
             self.assertTrue(abs(bitrate - expect_br) < (1.0/float(alpha))*bitrate_margin*expect_br)
 
             # check the hash of the last chunk we requested
-            self.assertTrue(hashlib.sha256(r.content).hexdigest() == HASH_VALUE[expect_br])
+            chunkhash = hashlib.sha256(r.content).hexdigest()
+            print 'Hash of last chunk: %s' % chunkhash
+            self.assertTrue(chunkhash == HASH_VALUE[expect_br])
         except Exception, e:
             self.exc_info = sys.exc_info()
 
@@ -170,6 +174,7 @@ class Project3Test(unittest.TestCase):
         self.check_gets('1.0.0.1', self.proxyport1, num_trials, 'proxy.log', 2000, 1000, 0, alpha)
         self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
         self.check_gets('1.0.0.1', self.proxyport1, num_trials/2, 'proxy.log', 900, 500, num_trials, alpha)
+        self.print_log('proxy.log')
         self.check_errors()
         return self.get_log_switch_len('proxy.log', num_trials, 1000, 500)
 
@@ -210,8 +215,8 @@ class Project3Test(unittest.TestCase):
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
         large = True if os.path.isdir(LARGE_FOLDER) else False
         ts = []
-        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', self.proxyport1, 10, PROXY1_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
-        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', self.proxyport2, 10, PROXY2_LOG, 950, 500, 0, 1.0, 0.5, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', self.proxyport1, 10, PROXY1_LOG, 950, 500, 0, 1.0, 0.6, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', self.proxyport2, 10, PROXY2_LOG, 950, 500, 0, 1.0, 0.6, 5, large)))
         for t in ts:
             t.start()
         for t in ts:
@@ -223,7 +228,7 @@ class Project3Test(unittest.TestCase):
     
     def test_proxy_alpha(self):
         log_switch = []
-        log_switch.append(self.run_alpha_test('0.1', 20))
+        log_switch.append(self.run_alpha_test('0.1', 30))
         check_output('killall -9 proxy')
         self.proxyport1 = random.randrange(1025, 6000)
         log_switch.append(self.run_alpha_test('0.5', 10))
