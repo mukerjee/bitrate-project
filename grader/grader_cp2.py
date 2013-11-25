@@ -5,17 +5,17 @@ import unittest
 from grader_super import Project3Test, emit_scores
 
 TEST_VALUES = {
-    'test_proxy_simple': 2,
-    'test_proxy_adaptation': 2,
-    'test_proxy_multiple_clients': 2,
-    'test_proxy_alpha': 2,
-    'test_writeup_exists': 2,
-    'test_dns_simple': 2,
-    'test_dns_rr': 2,
-    'test_dns_lsa_topo1': 2,
-    'test_dns_lsa_topo2': 2,
-    'test_dns_lsa_topo3': 2,
-    'test_dns_integration': 2
+    'test_proxy_simple': 8,
+    'test_proxy_adaptation': 8,
+    'test_proxy_multiple_clients': 7,
+    'test_proxy_alpha': 7,
+    'test_writeup_exists': 0,
+    'test_dns_simple': 10,
+    'test_dns_rr': 10,
+    'test_dns_lsa_topo1': 3,
+    'test_dns_lsa_topo2': 3,
+    'test_dns_lsa_topo3': 3,
+    'test_dns_integration': 11
 }
 
 TEST_CATEGORIES = {
