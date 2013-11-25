@@ -115,8 +115,6 @@ class Project3Test(unittest.TestCase):
                     r = requests.get('http://%s:%s/vod/large/1000Seg2-Frag3' %(ip, port))
                 else:
                     r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(ip, port))
-                    chunkhash2 = hashlib.sha256(r.content).hexdigest()
-                    print 'Hash of last chunk: %s' % chunkhash2
             # check what bitrate they're requesting
             tputs = []
             tput_avgs = []
@@ -231,10 +229,10 @@ class Project3Test(unittest.TestCase):
     def test_proxy_alpha(self):
         log_switch = []
         log_switch.append(self.run_alpha_test('0.1', 30))
-        check_output('killall -9 proxy')
+        check_both('killall -9 proxy', True, False)
         self.proxyport1 = random.randrange(1025, 6000)
         log_switch.append(self.run_alpha_test('0.5', 10))
-        check_output('killall -9 proxy')
+        check_both('killall -9 proxy', True, False)
         self.proxyport1 = random.randrange(1025, 6000)
         log_switch.append(self.run_alpha_test('0.9', 10))
         print log_switch
