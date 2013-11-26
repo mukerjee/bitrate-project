@@ -60,6 +60,7 @@ class Project3Test(unittest.TestCase):
     ########## HELPER FUNCTIONS ##########
 
     def run_proxy(self, log, alpha, listenport, fakeip, dnsip, dnsport, serverip=''):
+        check_both('rm %s' % log, False, False)
         run_bg('%s %s %s %s %s %s %s %s'\
             % (PROXY, log, alpha, listenport, fakeip, dnsip, dnsport, serverip))
 
@@ -96,7 +97,11 @@ class Project3Test(unittest.TestCase):
 
 
 
-    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, ignore=0, alpha=1.0, tput_margin=0.3, bitrate_margin=0.1, large=False):
+    def check_gets(self, ip, port, num_gets, log_file, link_bw, expect_br, use=5, alpha=1.0, tput_margin=0.3, bitrate_margin=0.1, large=False):
+        # TODO: better way to do this?
+        if use == -1:
+            use = 5
+
         if large:
             HASH_VALUE = {500: 'b1931364d7933ae90da7c6de423faf51b81503f4dfeb04da4be53dfb980c671e'}
         else:
@@ -119,16 +124,13 @@ class Project3Test(unittest.TestCase):
             tputs = []
             tput_avgs = []
             bitrates = []
-            i = 0
             for entry in self.iter_log(log_file):
-                i += 1
-                if i <= ignore: continue
                 tputs.append(float(entry[2]))
                 tput_avgs.append(float(entry[3]))
                 bitrates.append(int(float(entry[4])))
-            tputs = tputs[3:]
-            tput_avgs = tput_avgs[3:]
-            bitrates = bitrates[3:]
+            tputs = tputs[-use:]
+            tput_avgs = tput_avgs[-use:]
+            bitrates = bitrates[-use:]
             tput = float(sum(tputs))/len(tputs)
             tput_avg = float(sum(tput_avgs))/len(tput_avgs)
             bitrate = float(sum(bitrates))/len(bitrates)
@@ -171,9 +173,9 @@ class Project3Test(unittest.TestCase):
     def run_alpha_test(self, alpha, num_trials):
         self.run_proxy('proxy.log', alpha, self.proxyport1, '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'adaptation-2000.events')) 
-        self.check_gets('1.0.0.1', self.proxyport1, num_trials, 'proxy.log', 2000, 1000, 0, alpha)
+        self.check_gets('1.0.0.1', self.proxyport1, num_trials, 'proxy.log', 2000, 1000, 3, alpha)
         self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
-        self.check_gets('1.0.0.1', self.proxyport1, num_trials/2, 'proxy.log', 900, 500, num_trials, alpha)
+        self.check_gets('1.0.0.1', self.proxyport1, num_trials/2, 'proxy.log', 900, 500, 3, alpha)
         self.print_log('proxy.log')
         self.check_errors()
         return self.get_log_switch_len('proxy.log', num_trials, 1000, 500)
@@ -191,7 +193,7 @@ class Project3Test(unittest.TestCase):
         PROXY_LOG = 'proxy.log'
         self.run_proxy(PROXY_LOG, '1', self.proxyport1, '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'simple.events'))
-        self.check_gets('1.0.0.1', self.proxyport1, 5, 'proxy.log', 900, 500)
+        self.check_gets('1.0.0.1', self.proxyport1, 10, 'proxy.log', 900, 500)
         self.print_log(PROXY_LOG)
         self.check_errors()
         print 'done test_proxy_simple'
@@ -200,9 +202,9 @@ class Project3Test(unittest.TestCase):
         PROXY_LOG = 'proxy.log'
         self.run_proxy(PROXY_LOG, '1', self.proxyport1, '1.0.0.1', '0.0.0.0', '0', '2.0.0.1')
         self.run_events(os.path.join(self.topo_dir, 'adaptation-2000.events')) 
-        self.check_gets('1.0.0.1', self.proxyport1, 5, PROXY_LOG, 2000, 1000)
+        self.check_gets('1.0.0.1', self.proxyport1, 10, PROXY_LOG, 2000, 1000)
         self.run_events(os.path.join(self.topo_dir, 'adaptation-900.events')) 
-        self.check_gets('1.0.0.1', self.proxyport1, 5, PROXY_LOG, 900, 500, 5)
+        self.check_gets('1.0.0.1', self.proxyport1, 10, PROXY_LOG, 900, 500)
         self.print_log(PROXY_LOG)
         self.check_errors()
         print 'done test_proxy_adaptation'
@@ -215,8 +217,8 @@ class Project3Test(unittest.TestCase):
         self.run_events(os.path.join(self.topo_dir, 'multiple.events'))
         large = True if os.path.isdir(LARGE_FOLDER) else False
         ts = []
-        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', self.proxyport1, 10, PROXY1_LOG, 950, 500, 0, 1.0, 0.6, 5, large)))
-        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', self.proxyport2, 10, PROXY2_LOG, 950, 500, 0, 1.0, 0.6, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('1.0.0.1', self.proxyport1, 10, PROXY1_LOG, 950, 500, 7, 1.0, 0.6, 5, large)))
+        ts.append(Thread(target=self.check_gets, args= ('2.0.0.1', self.proxyport2, 10, PROXY2_LOG, 950, 500, 7, 1.0, 0.6, 5, large)))
         for t in ts:
             t.start()
         for t in ts:
