@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import os, struct, socket, time, random
+import os, struct, socket, time, random, select
 from dijkstra import getBestServer
 
 def s(i):
@@ -96,7 +96,19 @@ def genMessage(query_str, query=1, ROUND_ROBIN=0, servers_file="", lsa_file="", 
     # build RR's
     RR_ADDR = ""
     if not query:
+        # # Insert lengths and names into message
+        # message += b(lens[0])
+        # l = 1
+        # for i,c in enumerate(query_str):
+        #     if c == '.':
+        #         message += b(lens[l])
+        #         l += 1
+        #     else:
+        #         message += struct.pack('c',c)
+        # message += b(0)
         RR_NAME = 49164 #C0 0C
+        message += s(RR_NAME)
+
         RR_QTYPE = 1 #A record
         RR_QCLASS = 1 #IN
         RR_TTL = 0 # no caching
@@ -107,7 +119,7 @@ def genMessage(query_str, query=1, ROUND_ROBIN=0, servers_file="", lsa_file="", 
         else:
             RR_ADDR = getBestServer(addr[0], SERVERS, lsa_file)
         
-        message += s(RR_NAME)+s(RR_QTYPE)+s(RR_QCLASS) + \
+        message += s(RR_QTYPE)+s(RR_QCLASS) + \
             struct.pack('>I',RR_TTL) + s(RR_DATALENGTH)
         RR_ADDR = [int(float(a)) for a in RR_ADDR.split('.')]
         for a in RR_ADDR:
@@ -168,9 +180,25 @@ def parseMessage(data, query=0):
 
 
     RR_ADDR = ""
+
+    RR_NAME = ""
     if R_NUM_ANSWERS:
-        RR_NAME = us(data[i:i+2]) # should be C0 0C
-        i += 2
+        if us(data[i:i+2]) == 49164: # C0 0C
+            RR_NAME = us(data[i:i+2]) # should be C0 0C
+            i += 2
+        else:
+            l = ub(data[i])
+            i += 1
+            while l != 0:
+                RR_NAME += data[i]
+                i += 1
+                l -= 1
+                if l == 0:
+                    l = ub(data[i])
+                    i += 1
+                    RR_NAME += '.'
+            RR_NAME = ''.join(RR_NAME[:-1])
+            
         RR_TYPE = us(data[i:i+2]) # A record
         i += 2
         RR_CLASS = us(data[i:i+2]) # IN
@@ -202,5 +230,13 @@ def sendDNSQuery(query, local_ip, server_ip, server_port):
     dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dns_sock.bind((local_ip,0))
     dns_sock.sendto(message, (server_ip, server_port))
-    data, _ = dns_sock.recvfrom(1024)
+    dns_sock.setblocking(0)
+    data = []
+    for i in xrange(2):
+        ready = select.select([dns_sock], [], [], 1)
+        if ready[0]:
+            data, _ = dns_sock.recvfrom(1024)
+            break
+    if not data:
+        raise Exception("DNS server failed to respond")
     return parseMessage(data, 0)
