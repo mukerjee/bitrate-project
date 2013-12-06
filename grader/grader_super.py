@@ -360,6 +360,7 @@ class Project3Test(unittest.TestCase):
         self.run_proxy('proxy.log', '1', self.proxyport1, client, dns, self.dnsport)
         time.sleep(1)
 
+        r = requests.get('http://%s:%s/vod/big_buck_bunny.f4m' % (client, self.proxyport1))
         r = requests.get('http://%s:%s/vod/1000Seg2-Frag7' %(client, self.proxyport1))
 
         for entry in self.iter_log('dns.log'):
